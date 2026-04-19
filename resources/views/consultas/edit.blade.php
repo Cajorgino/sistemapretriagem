@@ -1,51 +1,44 @@
-<form action="{{ route('consultas.update', $consulta->id) }}" method="POST">
-    @csrf
-    @method('PUT')
+@extends('layouts.app')
 
-    <label>Data da consulta</label>
-    <input type="date" name="data_consulta" value="{{ $consulta->data_consulta }}">
+@section('title', 'Editar consulta — Cardioprenatal')
 
-    <label>Idade gestacional</label>
-    <input type="number" name="idade_gestacional" value="{{ $consulta->idade_gestacional }}">
+@section('content')
+    <div class="page-header">
+        <h1 class="page-title">Editar consulta</h1>
+        <p class="page-subtitle">
+            {{ $gestante->nome_exibicao }}
+            <span style="color: var(--muted);">· #{{ $gestante->id }}</span>
+            · Consulta nº {{ $consulta->consulta_numero }}
+            @if ($consulta->data_consulta)
+                · {{ $consulta->data_consulta->format('d/m/Y') }}
+            @endif
+        </p>
+    </div>
 
-    <label>Peso</label>
-    <input type="number" step="0.01" name="peso" value="{{ $consulta->peso }}">
+    <div class="main-card" style="max-width: 1152px; margin: 0 auto;">
+        @if ($errors->any())
+            <div class="form-alert-error">
+                <strong>Verifique os campos abaixo:</strong>
+                <ul>
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
-    <label>Hipertensão</label>
-    <select name="hipertensao">
-        <option value="0" {{ !$consulta->hipertensao ? 'selected' : '' }}>Não</option>
-        <option value="1" {{ $consulta->hipertensao ? 'selected' : '' }}>Sim</option>
-    </select>
+        <form action="{{ route('consultas.update', $consulta->id) }}" method="POST">
+            @csrf
+            @method('PUT')
 
-    <label>Pré-eclâmpsia</label>
-    <select name="hipertensao_pre_eclampsia">
-        <option value="0" {{ !$consulta->hipertensao_pre_eclampsia ? 'selected' : '' }}>Não</option>
-        <option value="1" {{ $consulta->hipertensao_pre_eclampsia ? 'selected' : '' }}>Sim</option>
-    </select>
+            @include('consultas.partials.fields', ['consulta' => $consulta])
 
-    <label>Histórico Familiar Cardiopatia (CHD)</label>
-    <select name="historico_familiar_chd">
-        <option value="0" {{ !$consulta->historico_familiar_chd ? 'selected' : '' }}>Não</option>
-        <option value="1" {{ $consulta->historico_familiar_chd ? 'selected' : '' }}>Sim</option>
-    </select>
-
-    <label>Uso de Medicamentos</label>
-    <select name="uso_medicamentos">
-        <option value="0" {{ !$consulta->uso_medicamentos ? 'selected' : '' }}>Não</option>
-        <option value="1" {{ $consulta->uso_medicamentos ? 'selected' : '' }}>Sim</option>
-    </select>
-
-    <label>Tabagismo</label>
-    <select name="tabagismo">
-        <option value="0" {{ !$consulta->tabagismo ? 'selected' : '' }}>Não</option>
-        <option value="1" {{ $consulta->tabagismo ? 'selected' : '' }}>Sim</option>
-    </select>
-
-    <label>Alcoolismo</label>
-    <select name="alcoolismo">
-        <option value="0" {{ !$consulta->alcoolismo ? 'selected' : '' }}>Não</option>
-        <option value="1" {{ $consulta->alcoolismo ? 'selected' : '' }}>Sim</option>
-    </select>
-
-    <button type="submit">Atualizar</button>
-</form>
+            <div class="form-actions">
+                <a href="{{ route('gestantes.show', $gestante) }}" class="btn-secondary-outline">Voltar à gestante</a>
+                <div class="form-actions-end">
+                    <button type="submit" class="btn-primary-custom">Atualizar consulta</button>
+                </div>
+            </div>
+        </form>
+    </div>
+@endsection

@@ -87,11 +87,44 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 68px; height: 68px;
+        gap: 8px;
+        min-width: 76px;
+        height: 68px;
+        padding: 0 18px;
         background: linear-gradient(135deg, var(--primary), var(--accent-mid));
         border-radius: 20px;
         margin-bottom: 20px;
         color: white;
+    }
+
+    .login-logo svg {
+        flex-shrink: 0;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+    }
+
+    .login-logo .heart-brand {
+        width: 32px;
+        height: 32px;
+        transform-origin: center;
+        animation: loginHeartPulse 2.4s ease-in-out infinite;
+    }
+
+    .login-logo .icon-baby-brand {
+        width: 30px;
+        height: 30px;
+        opacity: 0.98;
+    }
+
+    @keyframes loginHeartPulse {
+        0%, 100% { transform: scale(1); }
+        12% { transform: scale(1.1); }
+        24% { transform: scale(1); }
+        36% { transform: scale(1.06); }
+        48% { transform: scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .login-logo .heart-brand { animation: none; }
     }
 
     .login-title {
@@ -177,13 +210,19 @@
 
 <div class="login-card">
     <div class="login-header">
-        <div class="login-logo">
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
+        <div class="login-logo" aria-hidden="true" title="Coração e bebê">
+            <svg class="heart-brand" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
             </svg>
+            <svg class="icon-baby-brand" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 4.75a3.15 3.15 0 1 0 0 6.3 3.15 3.15 0 0 0 0-6.3z"/>
+                <path d="M12 12.2c-3.35 0-6.1 2.15-6.1 4.8V21h12.2v-4c0-2.65-2.75-4.8-6.1-4.8z"/>
+            </svg>
         </div>
-        <h1 class="login-title">Bem-vindo</h1>
-        <p style="color: var(--muted); font-size: 14px;">Acesse o portal de Cardiologia</p>
+        <h1 class="login-title">Cardioprenatal</h1>
+        <p style="color: var(--muted); font-size: 14px; line-height: 1.45; max-width: 22rem; margin: 0 auto;">
+            Rastreio de <strong style="color: var(--primary); font-weight: 600;">cardiopatias congênitas</strong> no pré-natal — entre com CRM e senha
+        </p>
     </div>
 
     <form method="POST" id="loginForm">

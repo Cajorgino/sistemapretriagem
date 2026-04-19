@@ -45,9 +45,17 @@
     }
     .btn-analisar:hover { opacity: 0.9; transform: scale(1.02); }
 
-    /* Ajustes específicos para a tabela do dashboard */
-    #tabela-estatistica th, #tabela-estatistica td { text-align: center; }
-    .td-left { text-align: left; font-weight: 600; color: var(--text); }
+    /* Tabela de estatísticas: primeira coluna à esquerda, demais centralizadas */
+    #tabela-estatistica th.td-left,
+    #tabela-estatistica td.td-left {
+        text-align: left;
+    }
+    #tabela-estatistica th:not(.td-left),
+    #tabela-estatistica td:not(.td-left) {
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+    }
+    .td-left { font-weight: 600; color: var(--text); }
 
     /* Loading Heart */
     .loading-heart { width: 50px; height: 50px; color: var(--accent); animation: heartbeat 0.8s infinite; }
@@ -62,7 +70,7 @@
 
 <div class="page-header">
     <h2 class="page-title">Visão Geral</h2>
-    <p class="page-subtitle">Sistema Inteligente de Monitoramento Cardioprenatal</p>
+    <p class="page-subtitle">Monitoramento materno-fetal e apoio ao rastreio de cardiopatias congênitas (CHD)</p>
 </div>
 
 <div class="cards-grid">
@@ -110,7 +118,7 @@
         <div id="dados-container" style="display: none;">
             <h4 style="font-family: 'DM Serif Display', serif; color: var(--primary); margin-bottom: 15px;">Estatística Descritiva</h4>
             <div class="table-container">
-                <table id="tabela-estatistica">
+                <table id="tabela-estatistica" class="data-table">
                     <thead>
                         <tr>
                             <th class="td-left">Variável</th>

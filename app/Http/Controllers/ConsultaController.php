@@ -1,13 +1,10 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\Analise;
+
 use App\Models\Consulta;
 use App\Models\Gestante;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class ConsultaController extends Controller
@@ -75,15 +72,10 @@ class ConsultaController extends Controller
         return $this->storeFromForm($request, $id);
     }
 
-
-
-
-
-
     // STORE VIA IMPORTAÇÃO CSV
     public function import(Request $request)
     {
-        if (!$request->hasFile('csv')) {
+        if (! $request->hasFile('csv')) {
             return redirect()->back()->with('error', 'Nenhum arquivo CSV foi enviado.');
         }
 
@@ -91,7 +83,6 @@ class ConsultaController extends Controller
     }
 
     // STORE VIA IMPORTAÇÃO CSV
-
 
     private function toBoolean($value)
     {
@@ -106,7 +97,7 @@ class ConsultaController extends Controller
 
         // 1. Validar upload
         $request->validate([
-            'csv' => 'required|file|mimes:csv,txt'
+            'csv' => 'required|file|mimes:csv,txt',
         ]);
 
         $file = $request->file('csv');
@@ -148,7 +139,7 @@ class ConsultaController extends Controller
             'eixo_cardiaco',
             'quatro_camaras',
             'chd_confirmada',
-            'tipo_chd'
+            'tipo_chd',
         ];
 
         // 4. Validar estrutura do CSV
@@ -156,14 +147,14 @@ class ConsultaController extends Controller
         $colunasFaltando = array_diff($colunasEsperadas, $header);
         $colunasExtras = array_diff($header, $colunasEsperadas);
 
-        if (!empty($colunasFaltando) || !empty($colunasExtras)) {
+        if (! empty($colunasFaltando) || ! empty($colunasExtras)) {
 
             return response()->json([
                 'message' => 'Estrutura do CSV inválida.',
                 'error' => [
                     'faltando' => array_values($colunasFaltando),
-                    'extras' => array_values($colunasExtras)
-                ]
+                    'extras' => array_values($colunasExtras),
+                ],
             ], 422);
         }
 
@@ -177,13 +168,13 @@ class ConsultaController extends Controller
             if (count($header) !== count($row)) {
                 $erros[] = [
                     'linha_csv' => $numeroLinha ?? null,
-                    'erro' => 'Quantidade de colunas inválida'
+                    'erro' => 'Quantidade de colunas inválida',
                 ];
+
                 continue;
             }
 
             $linha = array_combine($header, $row);
-
 
             // 👇 CONVERTE AQUI (ANTES DO VALIDATE)
             $camposBooleanos = [
@@ -195,7 +186,7 @@ class ConsultaController extends Controller
                 'uso_medicamentos',
                 'tabagismo',
                 'alcoolismo',
-                'chd_confirmada'
+                'chd_confirmada',
             ];
 
             foreach ($camposBooleanos as $campo) {
@@ -241,7 +232,7 @@ class ConsultaController extends Controller
                 'eixo_cardiaco' => 'nullable|string',
                 'quatro_camaras' => 'nullable|string',
                 'chd_confirmada' => 'required|boolean',
-                'tipo_chd' => 'nullable|string'
+                'tipo_chd' => 'nullable|string',
             ]);
 
             if ($validator->fails()) {
@@ -253,10 +244,10 @@ class ConsultaController extends Controller
 
         fclose($handle);
 
-        if (!empty($erros)) {
+        if (! empty($erros)) {
             return response()->json([
                 'message' => 'Erro de validação nos dados.',
-                'error' => $erros
+                'error' => $erros,
             ], 422);
         }
 
@@ -265,14 +256,12 @@ class ConsultaController extends Controller
             Consulta::create($item);
         }
 
-        // O processamento da IA agora deve ser disparado pelo botão "Analisar" 
+        // O processamento da IA agora deve ser disparado pelo botão "Analisar"
         // na Dashboard para evitar timeouts durante o upload.
         return response()->json([
-            'message' => 'Importação realizada com sucesso!'
+            'message' => 'Importação realizada com sucesso!',
         ]);
     }
-
-
 
     public function create($id)
     {
@@ -281,6 +270,14 @@ class ConsultaController extends Controller
 
         // 2. Passar o objeto 'gestante' para a view.
         return view('consultas.create', compact('gestante'));
+    }
+
+    public function edit($id)
+    {
+        $consulta = Consulta::with('gestante')->findOrFail($id);
+        $gestante = $consulta->gestante;
+
+        return view('consultas.edit', compact('consulta', 'gestante'));
     }
 
     public function update(Request $request, $id)
@@ -318,7 +315,7 @@ class ConsultaController extends Controller
             'tabagismo' => 'required|boolean',
             'alcoolismo' => 'required|boolean',
             'chd_confirmada' => 'required|boolean',
-            'tipo_chd' => 'nullable|string|max:255'
+            'tipo_chd' => 'nullable|string|max:255',
         ]);
 
         $consulta->update($validatedData);

@@ -14,6 +14,18 @@ class GestanteResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'gestante_id' => $this->gestante_id,
+            'nome' => $this->nome,
+            'nome_exibicao' => $this->nome_exibicao,
+            'data_nascimento' => $this->data_nascimento,
+            'cpf' => $this->cpf,
+            'cpf_formatado' => $this->cpf_formatado,
+            'telefone' => $this->telefone,
+            'telefone_formatado' => $this->telefone_formatado,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
     }
 }

@@ -1,59 +1,75 @@
 @extends('layouts.app')
 
+@section('title', 'Editar gestante — Cardioprenatal')
+
 @section('content')
+    <div class="page-header">
+        <h1 class="page-title">Editar gestante</h1>
+        <p class="page-subtitle">{{ $gestante->nome_exibicao }}</p>
+    </div>
 
-<div class="max-w-5xl mx-auto mt-10">
-
-    <div class="bg-white shadow-lg rounded-xl p-8">
-
-        <h2 class="text-2xl font-semibold text-gray-700 mb-6">
-            Editar Gestante
-        </h2>
-
+    <div class="main-card" style="max-width: 720px;">
         <form action="{{ route('gestantes.update', $gestante->id) }}" method="POST">
             @csrf
             @method('PUT')
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            @if ($errors->any())
+                <div style="background: var(--accent-light); border: 1px solid var(--border); color: var(--primary); padding: 16px 18px; border-radius: 16px; margin-bottom: 24px;">
+                    <ul style="margin: 0; padding-left: 1.1rem; line-height: 1.6;">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
+            <div style="display: grid; gap: 20px;">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        ID da Gestante
-                    </label>
-                    <input
-                        type="text"
-                        name="gestante_id"
-                        value="{{ $gestante->gestante_id }}"
-                        class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
-                    >
+                    <label for="nome" style="display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px;">Nome completo</label>
+                    <input type="text" name="nome" id="nome" required value="{{ old('nome', $gestante->nome) }}" maxlength="255"
+                           autocomplete="name"
+                           style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 15px;">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Data de Nascimento
-                    </label>
-                    <input
-                        type="date"
-                        name="data_nascimento"
-                        value="{{ $gestante->data_nascimento }}"
-                        class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500"
-                    >
+                    <span style="display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px;">Número do cadastro</span>
+                    <p style="margin: 0; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(253, 240, 240, 0.35); font-size: 15px; font-weight: 600; color: var(--text);">
+                        #{{ $gestante->id }}
+                    </p>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4;">Gerado automaticamente e sequencial; não pode ser alterado.</p>
                 </div>
 
+                <div>
+                    <label for="cpf" style="display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px;">CPF</label>
+                    <input type="text" name="cpf" id="cpf"
+                           value="{{ old('cpf', $gestante->cpf ? $gestante->cpf_formatado : '') }}"
+                           placeholder="000.000.000-00"
+                           required
+                           style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 15px;">
+                </div>
+
+                <div>
+                    <label for="telefone" style="display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px;">Telefone / WhatsApp</label>
+                    <input type="text" name="telefone" id="telefone"
+                           value="{{ old('telefone', $gestante->telefone_formatado ?? $gestante->telefone) }}"
+                           placeholder="(00) 00000-0000"
+                           required
+                           style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 15px;">
+                </div>
+
+                <div>
+                    <label for="data_nascimento" style="display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px;">Data de nascimento</label>
+                    <input type="date" name="data_nascimento" id="data_nascimento" required value="{{ old('data_nascimento', $gestante->data_nascimento) }}"
+                           style="width: 100%; max-width: 280px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 15px;">
+                </div>
             </div>
 
-            <div class="mt-8 flex justify-end">
-                <button
-                    type="submit"
-                    class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition">
-                    Atualizar
-                </button>
+            <div style="margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap;">
+                <button type="submit" class="btn-primary-custom">Atualizar</button>
+                <a href="{{ route('gestantes.show', $gestante) }}" style="display: inline-flex; align-items: center; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); color: var(--primary); text-decoration: none; font-weight: 600;">
+                    Cancelar
+                </a>
             </div>
-
         </form>
-
     </div>
-
-</div>
-
 @endsection

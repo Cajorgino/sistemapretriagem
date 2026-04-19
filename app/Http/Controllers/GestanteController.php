@@ -2,15 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\GestanteResource;
 use App\Models\Gestante;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Throwable;
 
 class GestanteController extends Controller
 {
     public function index()
     {
-        $gestantes = Gestante::withCount('consultas')->orderBy('gestante_id')->paginate(15);
+        $gestantes = Gestante::withCount('consultas')
+            ->orderBy('nome')
+            ->orderBy('id')
+            ->paginate(15);
 
         return view('gestantes.index', compact('gestantes'));
     }
@@ -20,14 +26,36 @@ class GestanteController extends Controller
         return view('gestantes.create');
     }
 
-    public function store(Request $request)
+    public function store(Request $request, WhatsAppService $whatsAppService)
     {
-        $request->validate([
-            'gestante_id' => 'required|unique:gestantes,gestante_id',
-            'data_nascimento' => 'required|date',
+        $request->merge([
+            'cpf' => $this->normalizeDigits($request->input('cpf')),
+            'telefone' => $this->normalizeDigits($request->input('telefone')),
         ]);
 
-        $gestante = Gestante::create($request->all());
+        $validated = $request->validate([
+            'nome' => 'required|string|max:255',
+            'data_nascimento' => 'required|date',
+            'cpf' => ['required', 'regex:/^\d{11}$/', Rule::unique('gestantes', 'cpf')],
+            'telefone' => ['required', 'regex:/^\d{10,13}$/', Rule::unique('gestantes', 'telefone')],
+        ], [
+            'cpf.required' => 'Informe o CPF da gestante.',
+            'cpf.regex' => 'O CPF deve conter 11 dígitos.',
+            'telefone.required' => 'Informe o telefone da gestante.',
+            'telefone.regex' => 'O telefone deve ter entre 10 e 13 dígitos (com DDD ou 55).',
+        ]);
+
+        $gestante = Gestante::create($validated);
+
+        try {
+            $whatsAppService->sendGestanteWelcomeMessage($gestante);
+        } catch (Throwable $e) {
+            Log::error('Falha ao disparar WhatsApp de boas-vindas após cadastro de gestante.', [
+                'gestante_id' => $gestante->id,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         return redirect()->route('gestantes.show', $gestante->id)->with('success', 'Gestante cadastrada com sucesso!');
     }
@@ -45,29 +73,53 @@ class GestanteController extends Controller
     public function edit($id)
     {
         $gestante = Gestante::findOrFail($id);
+
         return view('gestantes.edit', compact('gestante'));
 
     }
 
     public function update(Request $request, $id)
     {
-         $gestante = Gestante::findOrFail($id);
+        $gestante = Gestante::findOrFail($id);
 
-            $request->validate([
-                'gestante_id' => 'required|unique:gestantes,gestante_id,' . $gestante->id,
-                'data_nascimento' => 'required|date',
-            ]);
+        $request->merge([
+            'cpf' => $this->normalizeDigits($request->input('cpf')),
+            'telefone' => $this->normalizeDigits($request->input('telefone')),
+        ]);
 
-            $gestante->update($request->all());
+        $validated = $request->validate([
+            'nome' => 'required|string|max:255',
+            'data_nascimento' => 'required|date',
+            'cpf' => ['required', 'regex:/^\d{11}$/', Rule::unique('gestantes', 'cpf')->ignore($gestante->id)],
+            'telefone' => ['required', 'regex:/^\d{10,13}$/', Rule::unique('gestantes', 'telefone')->ignore($gestante->id)],
+        ], [
+            'cpf.required' => 'Informe o CPF da gestante.',
+            'cpf.regex' => 'O CPF deve conter 11 dígitos.',
+            'telefone.required' => 'Informe o telefone da gestante.',
+            'telefone.regex' => 'O telefone deve ter entre 10 e 13 dígitos (com DDD ou 55).',
+        ]);
 
-            return redirect()->route('gestantes.show', $gestante->id)->with('success', 'Dados da gestante atualizados com sucesso!');
+        $gestante->update($validated);
+
+        return redirect()->route('gestantes.show', $gestante->id)->with('success', 'Dados da gestante atualizados com sucesso!');
     }
 
     public function destroy($id)
     {
-         $gestante = Gestante::findOrFail($id);
-         $gestante->delete();
+        $gestante = Gestante::findOrFail($id);
+        $gestante->delete();
 
-          return redirect()->route('gestantes.index')->with('success', 'Gestante removida com sucesso!');
+        return redirect()->route('gestantes.index')->with('success', 'Gestante removida com sucesso!');
+    }
+
+    private function normalizeDigits(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/\D/', '', $value);
+
+        return $digits !== '' ? $digits : null;
     }
 }

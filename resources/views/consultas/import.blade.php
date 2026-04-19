@@ -1,74 +1,90 @@
 @extends('layouts.app')
 
-@section('title', 'Importar Consultas')
+@section('title', 'Importar consultas — Cardioprenatal')
 
 @section('content')
-    <div class="max-w-xl mx-auto bg-white shadow rounded-lg p-6">
-        <h2 class="text-lg font-semibold text-gray-700 mb-4">
-            Importar consultas (CSV)
-        </h2>
+    <div class="page-header">
+        <h1 class="page-title">Importar consultas</h1>
+        <p class="page-subtitle">Envie um arquivo CSV com o layout esperado pelo sistema</p>
+    </div>
 
-        <form id="importForm" class="space-y-4">
+    <div class="main-card" style="max-width: 560px;">
+        <h2 class="card-title" style="font-size: 20px; margin-bottom: 8px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Arquivo CSV
+        </h2>
+        <p style="color: var(--muted); font-size: 14px; line-height: 1.55; margin-bottom: 24px;">
+            Após a importação bem-sucedida, você será redirecionado ao painel. Em caso de erro na estrutura do arquivo, uma mensagem será exibida abaixo.
+        </p>
+
+        <form id="importForm">
             @csrf
 
-            <input type="file" name="csv" accept=".csv"
-                class="block w-full text-sm text-gray-600
-                   file:mr-4 file:py-2 file:px-4
-                   file:rounded file:border-0
-                   file:text-sm file:font-semibold
-                   file:bg-blue-50 file:text-blue-700
-                   hover:file:bg-blue-100"
-                required>
+            <div class="form-field">
+                <label class="form-label" for="csv">Selecionar arquivo</label>
+                <input class="form-input" type="file" name="csv" id="csv" accept=".csv,text/csv" required
+                       style="padding: 10px; cursor: pointer;">
+            </div>
 
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition">
-                Importar CSV
-            </button>
+            <div id="feedback" class="form-alert-error hidden" style="margin-top: 20px;" role="alert"></div>
+
+            <div class="form-actions" style="border-top: none; padding-top: 8px; margin-top: 8px;">
+                <a href="{{ route('dashboard') }}" class="btn-secondary-outline">Voltar</a>
+                <button type="submit" class="btn-primary-custom" id="importSubmit">Importar</button>
+            </div>
         </form>
-
-        <div id="feedback" class="mt-4 text-sm hidden"></div>
     </div>
 
     <script>
-        document.getElementById('importForm').addEventListener('submit', async function(e) {
+        document.getElementById('importForm').addEventListener('submit', async function (e) {
             e.preventDefault();
 
             const formData = new FormData(this);
             const feedbackDiv = document.getElementById('feedback');
-            const submitButton = e.target.querySelector('button[type="submit"]');
+            const submitButton = document.getElementById('importSubmit');
 
             feedbackDiv.classList.add('hidden');
             submitButton.disabled = true;
-            submitButton.innerText = 'Importando...';
+            submitButton.textContent = 'Importando…';
 
             try {
                 const response = await fetch("{{ route('consultas.import.store') }}", {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
                     },
-                    body: formData
+                    body: formData,
                 });
 
                 if (response.ok) {
-                    // Redireciona para a lista de gestantes em caso de sucesso.
                     window.location.href = "{{ route('dashboard') }}";
-                } else {
-                    const data = await response.json();
-                    feedbackDiv.innerText = (data.message || 'Ocorreu um erro.') + (data.error ? ' Detalhes: ' + data.error : '');
-                    feedbackDiv.className = 'mt-4 text-sm text-red-600';
-                    feedbackDiv.classList.remove('hidden');
-                    submitButton.disabled = false;
-                    submitButton.innerText = 'Importar CSV';
+                    return;
                 }
 
-            } catch (error) {
-                feedbackDiv.innerText = 'Erro de conexão ou ao processar o arquivo.';
-                feedbackDiv.className = 'mt-4 text-sm text-red-600';
+                let message = 'Não foi possível importar.';
+                try {
+                    const data = await response.json();
+                    if (data.message) {
+                        message = data.message;
+                    }
+                    if (data.error) {
+                        message += ' ' + (typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+                    }
+                } catch (_) {}
+
+                feedbackDiv.textContent = message;
                 feedbackDiv.classList.remove('hidden');
-                submitButton.disabled = false;
-                submitButton.innerText = 'Importar CSV';
+            } catch (error) {
+                feedbackDiv.textContent = 'Erro de conexão ou ao processar o arquivo.';
+                feedbackDiv.classList.remove('hidden');
             }
+
+            submitButton.disabled = false;
+            submitButton.textContent = 'Importar';
         });
     </script>
 @endsection
