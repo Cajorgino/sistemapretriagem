@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Demo dashboard (gestantes + consultas, telefones fictícios): php artisan db:seed --class=PresentationDataSeeder
+        // Só consultas para gestantes já cadastradas sem consultas: php artisan db:seed --class=DemoConsultasForGestantesSeeder
+
         // User::factory(10)->create();
 
         User::factory()->create([

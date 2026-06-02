@@ -47,8 +47,9 @@ class GestanteController extends Controller
 
         $gestante = Gestante::create($validated);
 
+        $whatsappEnviado = false;
         try {
-            $whatsAppService->sendGestanteWelcomeMessage($gestante);
+            $whatsappEnviado = $whatsAppService->sendGestanteWelcomeMessage($gestante);
         } catch (Throwable $e) {
             Log::error('Falha ao disparar WhatsApp de boas-vindas após cadastro de gestante.', [
                 'gestante_id' => $gestante->id,
@@ -57,7 +58,18 @@ class GestanteController extends Controller
             ]);
         }
 
-        return redirect()->route('gestantes.show', $gestante->id)->with('success', 'Gestante cadastrada com sucesso!');
+        $redirect = redirect()
+            ->route('gestantes.show', $gestante->id)
+            ->with('success', 'Gestante cadastrada com sucesso!');
+
+        if (! $whatsappEnviado && config('services.waha.enabled')) {
+            $redirect->with(
+                'warning',
+                'O cadastro foi salvo, mas a mensagem de WhatsApp de boas-vindas não foi enviada. Confira se o WAHA está em execução e se a sessão está conectada (estado WORKING no painel).'
+            );
+        }
+
+        return $redirect;
     }
 
     public function show(Gestante $gestante)

@@ -19,7 +19,7 @@
     </div>
 
     <div class="main-card">
-        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px;">
+        <div class="card-toolbar">
             <h2 class="card-title" style="margin: 0; font-size: 20px;">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -154,12 +154,16 @@
     </div>
 
     <div id="modalConversa"
-         class="hidden fixed inset-0 flex items-center justify-center z-50"
-         style="background: rgba(28, 26, 26, 0.45); backdrop-filter: blur(4px); padding: 16px;">
-        <div class="main-card" style="max-width: 560px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; padding: 28px; margin: 0;">
+         class="app-modal-overlay"
+         style="background: rgba(28, 26, 26, 0.45); backdrop-filter: blur(4px);"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="modalConversaTitulo"
+         aria-hidden="true">
+        <div class="main-card app-modal-panel app-modal-panel--lg" style="max-height: min(90vh, 100dvh); display: flex; flex-direction: column; padding: 22px; margin: 0;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px;">
                 <div>
-                    <h2 style="font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--primary); margin-bottom: 4px;">
+                    <h2 id="modalConversaTitulo" style="font-family: 'DM Serif Display', serif; font-size: clamp(1.1rem, 3vw, 1.35rem); color: var(--primary); margin-bottom: 4px;">
                         Conversa
                     </h2>
                     <p id="modalConversaSub" style="color: var(--muted); font-size: 14px; line-height: 1.45;"></p>
@@ -179,7 +183,10 @@
     @push('scripts')
         <script>
             function fecharConversa() {
-                document.getElementById('modalConversa').classList.add('hidden');
+                const modal = document.getElementById('modalConversa');
+                modal.classList.remove('is-open');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
             }
 
             function escapeHtml(s) {
@@ -237,7 +244,9 @@
                     ? ('Gestante: ' + label + ' · Identificador #' + id)
                     : ('Identificador #' + id);
                 body.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 24px;">Carregando conversa…</p>';
-                modal.classList.remove('hidden');
+                modal.classList.add('is-open');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
 
                 try {
                     const res = await fetch('{{ url('/api/gestante-whatsapp') }}/' + encodeURIComponent(id), {
@@ -260,6 +269,13 @@
 
             document.getElementById('modalConversa').addEventListener('click', function (e) {
                 if (e.target === this) {
+                    fecharConversa();
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                const modal = document.getElementById('modalConversa');
+                if (e.key === 'Escape' && modal.classList.contains('is-open')) {
                     fecharConversa();
                 }
             });

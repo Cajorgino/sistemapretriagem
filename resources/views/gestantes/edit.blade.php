@@ -44,7 +44,7 @@
                     <input type="text" name="cpf" id="cpf"
                            value="{{ old('cpf', $gestante->cpf ? $gestante->cpf_formatado : '') }}"
                            placeholder="000.000.000-00"
-                           required
+                           inputmode="numeric" maxlength="14" required
                            style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 15px;">
                 </div>
 
@@ -53,18 +53,18 @@
                     <input type="text" name="telefone" id="telefone"
                            value="{{ old('telefone', $gestante->telefone_formatado ?? $gestante->telefone) }}"
                            placeholder="(00) 00000-0000"
-                           required
+                           inputmode="tel" maxlength="16" required
                            style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 15px;">
                 </div>
 
                 <div>
                     <label for="data_nascimento" style="display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px;">Data de nascimento</label>
                     <input type="date" name="data_nascimento" id="data_nascimento" required value="{{ old('data_nascimento', $gestante->data_nascimento) }}"
-                           style="width: 100%; max-width: 280px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 15px;">
+                           style="width: 100%; max-width: min(280px, 100%); padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); font-family: inherit; font-size: 15px;">
                 </div>
             </div>
 
-            <div style="margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="gestante-form-actions" style="margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap;">
                 <button type="submit" class="btn-primary-custom">Atualizar</button>
                 <a href="{{ route('gestantes.show', $gestante) }}" style="display: inline-flex; align-items: center; padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); color: var(--primary); text-decoration: none; font-weight: 600;">
                     Cancelar
@@ -72,4 +72,20 @@
             </div>
         </form>
     </div>
+
+    @include('partials.form-masks')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const cpf = document.getElementById('cpf');
+            const tel = document.getElementById('telefone');
+            if (cpf) {
+                maskCPFInput(cpf);
+                cpf.addEventListener('input', function () { maskCPFInput(this); });
+            }
+            if (tel) {
+                maskTelefoneBRInput(tel);
+                tel.addEventListener('input', function () { maskTelefoneBRInput(this); });
+            }
+        });
+    </script>
 @endsection

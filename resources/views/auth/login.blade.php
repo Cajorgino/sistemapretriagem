@@ -2,7 +2,7 @@
 
 @section('title', 'Login')
 
-@section('subtitle', 'Acesse sua conta')
+@section('subtitle', 'Acesso do médico')
 
 @section('content')
 
@@ -198,7 +198,13 @@
     }
 
     @media (max-width: 520px) {
-        .login-card { padding: 30px 20px; margin: 15px; }
+        .login-card {
+            padding: 28px 18px;
+            margin: 0;
+            max-width: calc(100vw - 24px);
+            border-radius: 22px;
+        }
+        .login-title { font-size: clamp(1.35rem, 5vw, 1.75rem); }
     }
 </style>
 
@@ -221,7 +227,7 @@
         </div>
         <h1 class="login-title">Cardioprenatal</h1>
         <p style="color: var(--muted); font-size: 14px; line-height: 1.45; max-width: 22rem; margin: 0 auto;">
-            Rastreio de <strong style="color: var(--primary); font-weight: 600;">cardiopatias congênitas</strong> no pré-natal — entre com CRM e senha
+            <strong style="color: var(--primary); font-weight: 600;">Acesso do médico</strong> — rastreio de cardiopatias congênitas no pré-natal. Entre com seu <strong style="color: var(--text); font-weight: 600;">CRM</strong> e senha.
         </p>
     </div>
 
@@ -234,7 +240,7 @@
                 <svg class="field-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                     <path d="M16 2v4M8 2v4M3 10h18M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z"/>
                 </svg>
-                <input type="text" name="crm" id="crm" value="{{ old('crm') }}" class="field-input" placeholder="Digite seu CRM">
+                <input type="text" name="crm" id="crm" value="{{ old('crm') }}" class="field-input" placeholder="Digite seu CRM, com tracinho (ex.: SP-123456)" maxlength="23" autocomplete="username">
             </div>
             @error('crm') <p class="field-error">{{ $message }}</p> @enderror
         </div>
@@ -272,7 +278,16 @@
     </form>
 </div>
 
+@include('partials.form-masks')
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const crm = document.getElementById('crm');
+        if (crm) {
+            maskCRMInput(crm);
+            crm.addEventListener('input', function () { maskCRMInput(this); });
+        }
+    });
+
     // Toggle Password
     const toggleBtn = document.getElementById('togglePassword');
     const passwordInput = document.getElementById('password');
@@ -293,6 +308,11 @@
         
         submitBtn.classList.add('loading');
         submitBtn.disabled = true;
+
+        const crmEl = document.getElementById('crm');
+        if (crmEl) {
+            crmEl.value = normalizeCRMValue(crmEl.value);
+        }
 
         const formData = new FormData(this);
 

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Cardioprenatal')</title>
+    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml" sizes="any">
 
     @vite(['resources/js/app.js'])
 
@@ -13,6 +14,11 @@
         @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
 
         :root {
             --primary:      #7f0c1a;
@@ -32,10 +38,12 @@
             font-family: 'DM Sans', sans-serif;
             background: var(--bg);
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             color: var(--text);
             position: relative;
+            overflow-x: clip;
         }
 
         body::before {
@@ -68,11 +76,14 @@
         .header-inner {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 0 24px;
-            height: 64px;
+            padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+            min-height: 56px;
+            height: auto;
+            padding-top: max(0px, env(safe-area-inset-top));
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
         }
 
         /* Logo */
@@ -81,6 +92,8 @@
             align-items: center;
             gap: 10px;
             text-decoration: none;
+            min-width: 0;
+            flex: 1 1 auto;
         }
 
         .header-logo-icon {
@@ -162,6 +175,7 @@
             display: flex;
             flex-direction: column;
             align-items: flex-start;
+            min-width: 0;
         }
 
         /* Nav desktop */
@@ -190,6 +204,7 @@
         }
 
         .nav-link svg { width: 16px; height: 16px; }
+        .nav-icon-baby { flex-shrink: 0; }
 
         /* Separador vertical */
         .nav-sep {
@@ -246,7 +261,12 @@
             gap: 4px;
         }
 
-        .nav-mobile.open { display: flex; }
+        .nav-mobile.open {
+            display: flex;
+            max-height: min(70vh, calc(100dvh - 56px));
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
 
         .nav-mobile .nav-link { justify-content: flex-start; }
 
@@ -261,22 +281,25 @@
             flex: 1;
             max-width: 1280px;
             width: 100%;
+            min-width: 0;
             margin: 0 auto;
-            padding: 32px 24px;
+            padding: 32px max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left));
         }
 
         /* ── FOOTER ── */
         footer {
             background: var(--surface);
             border-top: 1px solid var(--border);
-            padding: 16px 24px;
+            padding: 14px max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
             text-align: center;
             font-size: 13px;
             color: var(--muted);
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: center;
             gap: 6px;
+            row-gap: 8px;
         }
 
         .footer-brand-icons {
@@ -293,16 +316,42 @@
             flex-shrink: 0;
         }
 
-        @media (max-width: 768px) {
+        /* Menu compacto a partir de ~tablet — evita links espremidos no header */
+        @media (max-width: 991px) {
             .nav-desktop { display: none; }
-            .btn-mobile-menu { display: flex; }
-            main { padding: 20px 16px; }
+            .btn-mobile-menu { display: flex; flex-shrink: 0; }
+        }
+
+        @media (max-width: 768px) {
+            main { padding: 20px max(14px, env(safe-area-inset-right)) 24px max(14px, env(safe-area-inset-left)); }
+        }
+
+        @media (max-width: 420px) {
+            .header-logo-text { font-size: 17px; }
+            .header-logo-tagline { font-size: 9px; letter-spacing: 0.08em; }
+            .header-logo-icon { min-width: 52px; height: 34px; padding: 0 8px; }
         }
 
         /* ── COMPONENTES GLOBAIS DE UI ── */
         .page-header { margin-bottom: 32px; animation: fadeIn 0.5s ease-out; }
-        .page-title { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--primary); }
-        .page-subtitle { font-size: 15px; color: var(--muted); margin-top: 4px; }
+        .page-title { font-family: 'DM Serif Display', serif; font-size: clamp(1.35rem, 4vw + 0.5rem, 2rem); color: var(--primary); line-height: 1.15; word-break: break-word; }
+        .page-subtitle { font-size: clamp(13px, 2.5vw, 15px); color: var(--muted); margin-top: 6px; line-height: 1.45; }
+
+        /* Linha título + ações (dashboard, listas) */
+        .card-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .card-toolbar .card-title { margin: 0; flex: 1 1 200px; min-width: 0; }
+        @media (max-width: 560px) {
+            .card-toolbar { flex-direction: column; align-items: stretch; }
+            .card-toolbar .btn-analisar-wrap,
+            .card-toolbar .btn-primary-custom { width: 100%; justify-content: center; }
+        }
 
         .main-card {
             background: var(--surface);
@@ -312,12 +361,20 @@
             border: 1px solid var(--border);
             margin-bottom: 30px;
             animation: fadeIn 0.6s ease-out;
+            max-width: 100%;
+            min-width: 0;
         }
 
-        .card-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--primary); display: flex; align-items: center; gap: 12px; }
+        @media (max-width: 640px) {
+            .main-card { padding: 20px 16px; border-radius: 18px; }
+        }
+
+        .card-title { font-family: 'DM Serif Display', serif; font-size: clamp(1.05rem, 2.5vw + 0.6rem, 1.375rem); color: var(--primary); display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; }
 
         /* ── Tabelas (layout moderno) ── */
         .table-container {
+            width: 100%;
+            max-width: 100%;
             overflow-x: auto;
             margin-top: 20px;
             border-radius: 20px;
@@ -326,12 +383,29 @@
                 0 12px 40px rgba(127, 12, 26, 0.07),
                 0 0 0 1px rgba(127, 12, 26, 0.06);
             -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
         }
 
         .table-container--flush { margin-top: 0; }
 
+        .table-scroll-hint {
+            display: none;
+            font-size: 12px;
+            color: var(--muted);
+            margin: 0 0 10px;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 1024px) {
+            .table-scroll-hint { display: block; }
+        }
+
+        /* Largura pelo conteúdo: evita esmagar colunas (CPF/telefone quebrando no meio).
+           O .table-container fornece rolagem horizontal. */
         table.data-table {
-            width: 100%;
+            width: max-content;
+            min-width: 100%;
             border-collapse: separate;
             border-spacing: 0;
             background: transparent;
@@ -384,17 +458,68 @@
             text-align: center;
         }
 
-        table.data-table .td-actions {
+        /* Coluna de ações fixa à direita ao rolar horizontalmente */
+        table.data-table thead th.td-actions,
+        table.data-table tbody td.td-actions {
+            position: sticky;
+            right: 0;
+        }
+
+        table.data-table thead th.td-actions {
+            z-index: 4;
+            background: linear-gradient(180deg, #fff9f9 0%, #f8eaea 100%);
+            box-shadow: -10px 0 18px rgba(127, 12, 26, 0.07);
+        }
+
+        table.data-table tbody td.td-actions {
+            z-index: 2;
             text-align: right;
             white-space: nowrap;
+            min-width: 220px;
+            vertical-align: middle;
+            background: var(--surface);
+            box-shadow: -8px 0 14px rgba(127, 12, 26, 0.06);
+        }
+
+        table.data-table tbody tr:nth-child(even) td.td-actions {
+            background: rgba(253, 240, 240, 0.95);
+        }
+
+        table.data-table tbody tr:hover td.td-actions {
+            background: rgba(127, 12, 26, 0.09);
         }
 
         table.data-table .td-actions-inner {
-            display: flex;
-            flex-wrap: wrap;
+            display: inline-flex;
+            flex-wrap: nowrap;
             justify-content: flex-end;
             align-items: center;
             gap: 8px;
+        }
+
+        table.data-table th.td-nowrap,
+        table.data-table td.td-nowrap {
+            white-space: nowrap;
+        }
+
+        table.data-table th.td-cell-nome,
+        table.data-table td.td-cell-nome {
+            white-space: normal;
+            word-break: break-word;
+            max-width: min(12rem, 42vw);
+            min-width: 7rem;
+        }
+
+        @media (min-width: 900px) {
+            table.data-table th.td-cell-nome,
+            table.data-table td.td-cell-nome {
+                max-width: 18rem;
+            }
+        }
+
+        table.data-table th.td-num--narrow,
+        table.data-table td.td-num--narrow {
+            white-space: nowrap;
         }
 
         table.data-table tbody tr.data-table-empty td {
@@ -441,6 +566,98 @@
         .table-pagination {
             margin-top: 24px;
             padding-top: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+        }
+
+        /* Paginação custom (vendor/pagination/cardioprenatal) — evita sobreposição do template Tailwind (-ml-px) */
+        .cp-pagination {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            min-width: 0;
+        }
+
+        @media (min-width: 640px) {
+            .cp-pagination {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .cp-pagination__summary {
+            margin: 0;
+            font-size: 13px;
+            color: var(--muted);
+            text-align: center;
+            line-height: 1.45;
+        }
+
+        .cp-pagination__summary strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .cp-pagination__list {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .cp-pagination__item a,
+        .cp-pagination__item--active span,
+        .cp-pagination__item--disabled span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.5rem;
+            min-height: 2.5rem;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--primary);
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            font-variant-numeric: tabular-nums;
+            box-sizing: border-box;
+        }
+
+        .cp-pagination__item a:hover {
+            background: rgba(253, 240, 240, 0.85);
+            border-color: rgba(192, 57, 43, 0.35);
+        }
+
+        .cp-pagination__item--active span {
+            background: linear-gradient(135deg, var(--primary), var(--accent-mid));
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .cp-pagination__item--disabled span {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .cp-pagination__item--ellipsis span {
+            min-width: auto;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-weight: 500;
+            padding: 0 4px;
         }
 
         /* ── Formulários longos (consultas etc.) ── */
@@ -467,6 +684,10 @@
             border: 1px solid var(--border);
             border-radius: 18px;
             padding: 22px 24px;
+        }
+
+        @media (max-width: 640px) {
+            .form-section { padding: 16px 14px; border-radius: 14px; }
         }
 
         .form-section--wide {
@@ -558,6 +779,14 @@
             align-items: center;
         }
 
+        @media (max-width: 480px) {
+            .form-actions { flex-direction: column-reverse; align-items: stretch; }
+            .form-actions > * { width: 100%; justify-content: center; }
+            .form-actions-end { width: 100%; justify-content: stretch; }
+            .form-actions-end .btn-primary-custom,
+            .form-actions-end .btn-secondary-outline { flex: 1; justify-content: center; }
+        }
+
         .form-actions-end {
             display: flex;
             flex-wrap: wrap;
@@ -587,6 +816,46 @@
         }
 
         /* Leitura de consulta (ficha da gestante) */
+        .gestante-form-actions {
+            align-items: center;
+        }
+
+        @media (max-width: 480px) {
+            .gestante-form-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .gestante-form-actions .btn-primary-custom,
+            .gestante-form-actions a {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .gestante-header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 520px) {
+            .gestante-header-actions {
+                width: 100%;
+                justify-content: stretch;
+            }
+            .gestante-header-actions > a {
+                flex: 1 1 calc(50% - 5px);
+                justify-content: center;
+                min-width: 0;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .gestante-header-actions { flex-direction: column; }
+            .gestante-header-actions > a { flex: none; width: 100%; }
+        }
+
         .consulta-resumo-head {
             display: flex;
             flex-wrap: wrap;
@@ -594,6 +863,14 @@
             align-items: flex-start;
             gap: 16px;
             margin-bottom: 4px;
+        }
+
+        @media (max-width: 560px) {
+            .consulta-resumo-head {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .consulta-resumo-head .btn-table { align-self: flex-start; }
         }
 
         .consulta-pill {
@@ -645,6 +922,34 @@
             table.data-table thead th {
                 font-size: 10px;
             }
+
+            table.data-table .td-actions-inner {
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-width: 480px) {
+            table.data-table thead th,
+            table.data-table tbody td {
+                padding: 10px 11px;
+                font-size: 12px;
+            }
+
+            table.data-table thead th {
+                font-size: 9px;
+                letter-spacing: 0.05em;
+            }
+
+            .btn-table {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+        }
+
+        main .main-card img,
+        .grafico-item img {
+            max-width: 100%;
+            height: auto;
         }
 
         .btn-primary-custom {
@@ -662,6 +967,45 @@
             text-decoration: none;
         }
         .btn-primary-custom:hover { opacity: 0.9; transform: scale(1.02); }
+
+        /* Modal genérico (gestantes etc.)
+           Importante: não usar display:flex no estado fechado — conflita com .hidden do Tailwind. */
+        .app-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .app-modal-overlay.is-open {
+            display: flex;
+        }
+        .app-modal-panel {
+            max-width: 400px;
+            width: 100%;
+            margin: auto;
+        }
+
+        .app-modal-panel--lg {
+            max-width: min(560px, calc(100vw - 32px));
+        }
+
+        .app-modal-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        @media (max-width: 420px) {
+            .app-modal-actions { flex-direction: column; align-items: stretch; }
+            .app-modal-actions button,
+            .app-modal-actions .btn-primary-custom { width: 100%; justify-content: center; }
+        }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
@@ -701,8 +1045,12 @@
                     Dashboard
                 </a>
                 <a href="{{ route('gestantes.index') }}" class="nav-link">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    <svg class="nav-icon-baby" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="7.5" r="3.2"/>
+                        <circle cx="9.5" cy="12" r="0.65" fill="currentColor" stroke="none"/>
+                        <circle cx="14.5" cy="12" r="0.65" fill="currentColor" stroke="none"/>
+                        <path d="M10 15.5c.6.9 1.4 1.3 2 1.3s1.4-.4 2-1.3"/>
+                        <path d="M6 20c0-2.8 2.6-5 6-5s6 2.2 6 5"/>
                     </svg>
                     Gestantes
                 </a>
@@ -733,7 +1081,7 @@
             </nav>
 
             <!-- Botão mobile -->
-            <button class="btn-mobile-menu" id="menuButton" aria-label="Abrir menu">
+            <button type="button" class="btn-mobile-menu" id="menuButton" aria-label="Abrir menu" aria-expanded="false" aria-controls="mobileMenu">
                 <svg id="menuIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
                 </svg>
@@ -741,7 +1089,7 @@
         </div>
 
         <!-- Nav mobile -->
-        <nav class="nav-mobile" id="mobileMenu">
+        <nav class="nav-mobile" id="mobileMenu" role="navigation" aria-label="Menu principal">
             <a href="{{ route('dashboard') }}" class="nav-link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
                     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -750,8 +1098,12 @@
                 Dashboard
             </a>
             <a href="{{ route('gestantes.index') }}" class="nav-link">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                <svg class="nav-icon-baby" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                    <circle cx="12" cy="7.5" r="3.2"/>
+                    <circle cx="9.5" cy="12" r="0.65" fill="currentColor" stroke="none"/>
+                    <circle cx="14.5" cy="12" r="0.65" fill="currentColor" stroke="none"/>
+                    <path d="M10 15.5c.6.9 1.4 1.3 2 1.3s1.4-.4 2-1.3"/>
+                    <path d="M6 20c0-2.8 2.6-5 6-5s6 2.2 6 5"/>
                 </svg>
                 Gestantes
             </a>
@@ -800,7 +1152,17 @@
         const mobileMenu = document.getElementById('mobileMenu');
 
         menuButton.addEventListener('click', () => {
-            mobileMenu.classList.toggle('open');
+            const open = mobileMenu.classList.toggle('open');
+            menuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+            menuButton.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
+        });
+
+        mobileMenu.querySelectorAll('a.nav-link, .btn-logout').forEach((el) => {
+            el.addEventListener('click', () => {
+                mobileMenu.classList.remove('open');
+                menuButton.setAttribute('aria-expanded', 'false');
+                menuButton.setAttribute('aria-label', 'Abrir menu');
+            });
         });
 
         // Marca o link ativo

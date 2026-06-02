@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Cardioprenatal')</title>
+    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml" sizes="any">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/noty/lib/noty.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/noty/lib/themes/mint.css">
@@ -23,11 +24,12 @@
             font-family: 'DM Sans', sans-serif;
             background: #fdf5f5;
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow-x: hidden;
+            overflow-x: clip;
             position: relative;
         }
 
@@ -87,7 +89,8 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            padding: 32px 16px;
+            min-height: 100dvh;
+            padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
         }
                 .auth-footer {
             position: relative;

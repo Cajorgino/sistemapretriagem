@@ -91,8 +91,10 @@ class WhatsAppService
 
     /**
      * Mensagem de boas-vindas após cadastro de gestante (GestRisk).
+     *
+     * @return bool true se o WAHA aceitou o envio; false se ignorado ou falhou
      */
-    public function sendGestanteWelcomeMessage(Gestante $gestante): void
+    public function sendGestanteWelcomeMessage(Gestante $gestante): bool
     {
         $nome = trim((string) ($gestante->nome ?? ''));
         if ($nome === '') {
@@ -100,7 +102,7 @@ class WhatsAppService
                 'gestante_id' => $gestante->id,
             ]);
 
-            return;
+            return false;
         }
 
         $telefone = $gestante->telefone ?? '';
@@ -109,16 +111,18 @@ class WhatsAppService
                 'gestante_id' => $gestante->id,
             ]);
 
-            return;
+            return false;
         }
 
         $texto = $this->buildGestanteWelcomeText($nome);
 
         if (! $this->sendMessage($telefone, $texto)) {
-            return;
+            return false;
         }
 
         $this->persistOutgoingMessage($gestante->id, $texto);
+
+        return true;
     }
 
     /**

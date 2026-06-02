@@ -2,7 +2,7 @@
 
 @section('title', 'Cadastro')
 
-@section('subtitle', 'Crie sua conta')
+@section('subtitle', 'Cadastro do médico')
 
 @section('content')
 
@@ -272,8 +272,8 @@
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
             </svg>
         </div>
-        <h1 class="register-title">Criar conta</h1>
-        <p class="register-subtitle">Preencha os dados para se cadastrar</p>
+        <h1 class="register-title">Criar conta de médico</h1>
+        <p class="register-subtitle">Preencha seus dados para acessar o sistema (CRM, nome e contato).</p>
         <span class="register-badge">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             Cardiologia
@@ -312,7 +312,7 @@
                         <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
                     </svg>
                     <input type="text" id="crm" name="crm" value="{{ old('crm') }}"
-                        placeholder="Ex: 123456" autocomplete="off"
+                        placeholder="Digite seu CRM, com tracinho (ex.: SP-123456)" autocomplete="off" maxlength="23"
                         class="field-input {{ $errors->has('crm') ? 'is-error' : '' }}">
                 </div>
                 @error('crm')
@@ -386,7 +386,16 @@
 
 </div>
 
+@include('partials.form-masks')
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const crm = document.getElementById('crm');
+        if (crm) {
+            maskCRMInput(crm);
+            crm.addEventListener('input', function () { maskCRMInput(this); });
+        }
+    });
+
     document.getElementById('telefone').addEventListener('input', function () {
         let v = this.value.replace(/\D/g, '').slice(0, 11);
         if (v.length >= 7) {
@@ -448,6 +457,11 @@
         submitBtn.classList.add('loading');
         submitBtn.disabled = true;
 
+        const crmEl = document.getElementById('crm');
+        if (crmEl) {
+            crmEl.value = normalizeCRMValue(crmEl.value);
+        }
+
         const formData = new FormData(this);
 
         fetch('/register', {
@@ -461,16 +475,19 @@
             const data = await response.json();
             if (!response.ok) throw data;
 
+            const msg = data.message || 'Conta criada com sucesso! Redirecionando para o login…';
+            const next = (data.redirect || '/login');
+
             new Noty({
                 type: 'success',
                 layout: 'topRight',
-                text: 'Conta criada com sucesso!',
-                timeout: 2000
+                text: msg,
+                timeout: 2200
             }).show();
 
             setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 2000);
+                window.location.href = next;
+            }, 1800);
         })
         .catch(error => {
             submitBtn.classList.remove('loading');

@@ -1,6 +1,6 @@
-# CardioPrenatal / CardDiabet
+# Sistema Pré-Triagem (CardioPrenatal)
 
-**Repositório Oficial:** [github.com/cardiopatiaprenatal-blip/cardioprenatal](https://github.com/cardiopatiaprenatal-blip/cardioprenatal)
+**Repositório:** [github.com/Cajorgino/sistemapretriagem](https://github.com/Cajorgino/sistemapretriagem)
 
 ## 📌 Sobre o Projeto
 O **CardioPrenatal** é uma plataforma especializada no acompanhamento de gestantes, com foco na análise de riscos cardiovasculares e comorbidades durante o período gestacional. O sistema centraliza dados de consultas, realiza análises estatísticas automáticas via Python e fornece insights visuais para auxiliar na tomada de decisão clínica.
@@ -59,7 +59,7 @@ O **CardioPrenatal** é uma plataforma especializada no acompanhamento de gestan
 ### Instalação
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/cardiopatiaprenatal-blip/cardioprenatal.git
+   git clone https://github.com/Cajorgino/sistemapretriagem.git
    ```
 2. Instale as dependências do PHP:
    ```bash

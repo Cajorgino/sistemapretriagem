@@ -6,6 +6,17 @@
 <div style="padding-bottom: 32px;">
     <div style="max-width: 1152px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px;">
 
+        @if (session('success'))
+            <div class="main-card" role="status" style="margin-bottom: 0; border-left: 4px solid var(--success); background: rgba(39, 174, 96, 0.08);">
+                <p style="margin: 0; font-size: 15px; color: var(--text);">{{ session('success') }}</p>
+            </div>
+        @endif
+        @if (session('warning'))
+            <div class="main-card" role="alert" style="margin-bottom: 0; border-left: 4px solid #e67e22; background: rgba(230, 126, 34, 0.08);">
+                <p style="margin: 0; font-size: 15px; color: var(--text);">{{ session('warning') }}</p>
+            </div>
+        @endif
+
         <!-- Cabeçalho -->
         <div class="main-card" style="margin-bottom: 0;">
             <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 20px;">
@@ -43,7 +54,7 @@
                     </div>
                 </div>
 
-                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <div class="gestante-header-actions">
                     <a href="{{ route('gestantes.edit', $gestante) }}"
                        style="display: inline-flex; align-items: center; padding: 12px 20px; border-radius: 12px; border: 1px solid var(--border); color: var(--primary); text-decoration: none; font-weight: 600;">
                         Editar dados
