@@ -203,7 +203,7 @@
     <div class="dash-section">
         <h3 class="dash-table-title">Fila de ecocardiograma fetal</h3>
         <p class="dash-note">Priorização com base na última análise armazenada — ordenada por score de prioridade.</p>
-        <div class="table-container table-container--flush main-card" style="padding: 0; overflow: hidden;">
+        <div class="table-container table-container--flush main-card" style="padding: 0;">
             @if ($filaEcocardiograma->isEmpty())
                 <p class="dash-empty">Nenhuma gestante com ecocardiograma recomendado na última análise.</p>
             @else
