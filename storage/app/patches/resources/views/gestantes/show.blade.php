@@ -33,9 +33,9 @@
                             <strong style="color: var(--text);">#{{ $gestante->id }}</strong>
                         </p>
                         <p>
-                            Nascimento:
+                            Data de nascimento:
                             <strong style="color: var(--text);">
-                                {{ $gestante->data_nascimento ? \Carbon\Carbon::parse($gestante->data_nascimento)->format('d/m/Y') : 'Não informada' }}
+                                {{ $gestante->data_nascimento_formatada ?? 'Não informada' }}
                             </strong>
                         </p>
                         <p>

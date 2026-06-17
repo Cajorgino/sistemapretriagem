@@ -73,10 +73,10 @@
                         <th class="td-msg">Última mensagem</th>
                         <th class="td-nowrap">Tipo</th>
                         <th class="td-num">Tempo de atendimento</th>
-                        <th class="td-date">
+                        <th class="td-date th-wrap">
                             <a href="{{ route('historico-whatsapp.index', $sortQuery) }}"
                                style="color: inherit; text-decoration: none; border-bottom: 1px dashed rgba(127,12,26,0.35);">
-                                Data
+                                Data do atendimento
                                 @if ($sort === 'ultima_data')
                                     <span style="font-weight: 800;">{{ $direction === 'desc' ? '↓' : '↑' }}</span>
                                 @endif

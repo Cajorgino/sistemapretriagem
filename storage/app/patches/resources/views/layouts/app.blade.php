@@ -427,14 +427,21 @@
             z-index: 1;
             background: linear-gradient(180deg, #fff9f9 0%, #f8eaea 100%);
             color: var(--primary);
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
+            letter-spacing: 0.01em;
+            text-transform: none;
             padding: 14px 16px;
             text-align: left;
             border-bottom: 2px solid rgba(127, 12, 26, 0.14);
             white-space: nowrap;
+            vertical-align: bottom;
+        }
+
+        table.data-table thead th.th-wrap {
+            white-space: normal;
+            line-height: 1.3;
+            min-width: 5.5rem;
         }
 
         table.data-table tbody td {
@@ -537,8 +544,9 @@
 
         table.data-table th.td-date,
         table.data-table td.td-date {
-            min-width: 6.75rem;
+            min-width: 9.5rem;
             white-space: nowrap;
+            font-variant-numeric: tabular-nums;
         }
 
         table.data-table th.td-msg,
@@ -767,6 +775,24 @@
             margin-bottom: 8px;
         }
 
+        .form-hint {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        .form-readonly {
+            margin: 0;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(253, 240, 240, 0.35);
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
         .form-input,
         .form-select,
         .form-textarea {
@@ -979,8 +1005,8 @@
             }
 
             table.data-table thead th {
-                font-size: 9px;
-                letter-spacing: 0.05em;
+                font-size: 10px;
+                letter-spacing: 0;
             }
 
             .btn-table {

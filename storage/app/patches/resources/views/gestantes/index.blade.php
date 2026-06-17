@@ -30,11 +30,11 @@
                 <thead>
                     <tr>
                         <th class="td-cell-nome">Nome</th>
-                        <th class="td-num td-num--narrow">Nº cadastro</th>
+                        <th class="td-num td-num--narrow" title="Número do cadastro">Cadastro</th>
                         <th class="td-risco">Risco</th>
                         <th class="td-cpf">CPF</th>
                         <th class="td-tel">Telefone</th>
-                        <th class="td-date">Nascimento</th>
+                        <th class="td-date th-wrap">Data de nascimento</th>
                         <th class="td-num td-num--narrow">Consultas</th>
                         <th class="td-actions">Ações</th>
                     </tr>
@@ -59,7 +59,7 @@
                             </td>
                             <td class="td-cpf">{{ $gestante->cpf ? $gestante->cpf_formatado : '—' }}</td>
                             <td class="td-tel">{{ $gestante->telefone ? $gestante->telefone_formatado : '—' }}</td>
-                            <td class="td-date">{{ $gestante->data_nascimento ? \Carbon\Carbon::parse($gestante->data_nascimento)->format('d/m/Y') : '—' }}</td>
+                            <td class="td-date">{{ $gestante->data_nascimento_formatada ?? '—' }}</td>
                             <td class="td-num td-num--narrow">{{ $gestante->consultas_count }}</td>
                             <td class="td-actions">
                                 <div class="td-actions-inner">

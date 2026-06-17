@@ -13,6 +13,10 @@ class Gestante extends Model
         'telefone',
     ];
 
+    protected $casts = [
+        'data_nascimento' => 'date',
+    ];
+
     protected static function booted(): void
     {
         static::created(function (Gestante $gestante) {
@@ -63,6 +67,30 @@ class Gestante extends Model
         }
 
         return $this->telefone;
+    }
+
+    /**
+     * Data de nascimento para exibição (dd/mm/aaaa).
+     */
+    public function getDataNascimentoFormatadaAttribute(): ?string
+    {
+        if ($this->data_nascimento === null) {
+            return null;
+        }
+
+        return $this->data_nascimento->format('d/m/Y');
+    }
+
+    /**
+     * Data de nascimento para input type="date" (aaaa-mm-dd).
+     */
+    public function getDataNascimentoInputAttribute(): ?string
+    {
+        if ($this->data_nascimento === null) {
+            return null;
+        }
+
+        return $this->data_nascimento->format('Y-m-d');
     }
 
     public function consultas()
