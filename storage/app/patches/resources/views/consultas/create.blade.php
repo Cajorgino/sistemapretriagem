@@ -1,0 +1,42 @@
+@extends('layouts.app')
+
+@section('title', 'Nova consulta — Cardioprenatal')
+
+@section('content')
+    <div class="page-header">
+        <h1 class="page-title">Nova consulta clínica</h1>
+        <p class="page-subtitle">
+            <strong>{{ $gestante->nome_exibicao }}</strong>
+            <span style="color: var(--muted); font-weight: 600;">· #{{ $gestante->id }}</span>
+            @if ($gestante->cpf)
+                · CPF {{ $gestante->cpf_formatado }}
+            @endif
+        </p>
+    </div>
+
+    <div class="main-card" style="max-width: 960px; margin: 0 auto; padding: 28px 32px;">
+        @if ($errors->any())
+            <div class="form-alert-error">
+                <strong>Verifique os campos abaixo:</strong>
+                <ul>
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        <form action="{{ route('consultas.store', ['id' => $gestante->id]) }}" method="POST">
+            @csrf
+
+            @include('consultas.partials.fields', ['consulta' => null])
+
+            <div class="form-actions">
+                <a href="{{ route('gestantes.show', $gestante) }}" class="btn-secondary-outline">Cancelar</a>
+                <div class="form-actions-end">
+                    <button type="submit" class="btn-primary-custom">Salvar consulta</button>
+                </div>
+            </div>
+        </form>
+    </div>
+@endsection

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Http\Controllers\AnaliseController;
 use App\Http\Controllers\AuthController;
@@ -6,6 +6,7 @@ use App\Http\Controllers\ConsultaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GestanteController;
 use App\Http\Controllers\GestanteWhatsappController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -28,7 +29,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    // Rotas de Análise (IA) via Job para evitar timeout
+    // Rotas de AnÃ¡lise (IA) via Job para evitar timeout
     Route::post('/dashboard/analisar', [AnaliseController::class, 'iniciarAnalise'])->name('dashboard.analisar');
     Route::get('/dashboard/verificar-analise', [AnaliseController::class, 'verificarStatus'])->name('dashboard.verificarAnalise');
     Route::get('/dashboard/resultado-analise', [AnaliseController::class, 'obterResultado'])->name('dashboard.resultadoAnalise');
@@ -52,5 +53,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::put('/consultas/{id}', [ConsultaController::class, 'update'])->name('consultas.update');
 });
 
-Route::get('/register', [AuthController::class, 'registerIndex'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);
+Route::redirect('/register', '/users/create');
+Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
+Route::post('/users', [UserController::class, 'store'])->name('users.store');
+

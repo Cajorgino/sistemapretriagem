@@ -24,15 +24,223 @@
         <h3 class="form-section-title">Dados maternos</h3>
         <div class="form-field-grid form-field-grid--2">
             <div class="form-field">
-                <label class="form-label" for="altura">Altura (cm)</label>
-                <input class="form-input" type="number" name="altura" id="altura" min="140" max="210"
-                       value="{{ old('altura', $c?->altura) }}">
+                <label class="form-label" for="idade_materna">Idade materna</label>
+                <input class="form-input" type="number" name="idade_materna" id="idade_materna" min="10" max="60"
+                       value="{{ old('idade_materna', $c?->idade_materna) }}">
             </div>
             <div class="form-field">
-                <label class="form-label" for="peso">Peso (kg)</label>
-                <input class="form-input" type="number" name="peso" id="peso" step="0.1" min="30" max="300"
-                       value="{{ old('peso', $c?->peso) }}">
+                <label class="form-label" for="etnia">Etnia</label>
+                <input class="form-input" type="text" name="etnia" id="etnia"
+                       value="{{ old('etnia', $c?->etnia) }}">
             </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="imc_pre_gestacional">IMC pré-gestacional</label>
+                <input class="form-input" type="number" step="0.1" name="imc_pre_gestacional" id="imc_pre_gestacional"
+                       value="{{ old('imc_pre_gestacional', $c?->imc_pre_gestacional) }}">
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="paridade">Paridade</label>
+                <input class="form-input" type="number" name="paridade" id="paridade" min="0" max="20"
+                       value="{{ old('paridade', $c?->paridade) }}">
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="abortamentos_previos">Abortamentos prévios</label>
+                <input class="form-input" type="number" name="abortamentos_previos" id="abortamentos_previos" min="0" max="20"
+                       value="{{ old('abortamentos_previos', $c?->abortamentos_previos) }}">
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="historico_natimorto">Histórico de natimorto</label>
+                <select class="form-select" name="historico_natimorto" id="historico_natimorto" required>
+                    <option value="0" @selected($bool('historico_natimorto') === 0)>Não</option>
+                    <option value="1" @selected($bool('historico_natimorto') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="historico_filho_anterior_chd">Filho anterior com CHD</label>
+                <select class="form-select" name="historico_filho_anterior_chd" id="historico_filho_anterior_chd" required>
+                    <option value="0" @selected($bool('historico_filho_anterior_chd') === 0)>Não</option>
+                    <option value="1" @selected($bool('historico_filho_anterior_chd') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="historico_familiar_chd">Histórico familiar de CHD</label>
+                <select class="form-select" name="historico_familiar_chd" id="historico_familiar_chd" required>
+                    <option value="0" @selected($bool('historico_familiar_chd') === 0)>Não</option>
+                    <option value="1" @selected($bool('historico_familiar_chd') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="diabetes_pre_gestacional">Diabetes pré-gestacional</label>
+                <select class="form-select" name="diabetes_pre_gestacional" id="diabetes_pre_gestacional" required>
+                    <option value="0" @selected($bool('diabetes_pre_gestacional') === 0)>Não</option>
+                    <option value="1" @selected($bool('diabetes_pre_gestacional') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="diabetes_gestacional">Diabetes gestacional</label>
+                <select class="form-select" name="diabetes_gestacional" id="diabetes_gestacional" required>
+                    <option value="0" @selected($bool('diabetes_gestacional') === 0)>Não</option>
+                    <option value="1" @selected($bool('diabetes_gestacional') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="lupus_eritomatoso_sistemico">Lúpus Eritematoso Sistêmico</label>
+                <select class="form-select" name="lupus_eritomatoso_sistemico" id="lupus_eritomatoso_sistemico" required>
+                    <option value="0" @selected($bool('lupus_eritomatoso_sistemico') === 0)>Não</option>
+                    <option value="1" @selected($bool('lupus_eritomatoso_sistemico') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="fenilcetonuria">Fenilcetonúria</label>
+                <select class="form-select" name="fenilcetonuria" id="fenilcetonuria" required>
+                    <option value="0" @selected($bool('fenilcetonuria') === 0)>Não</option>
+                    <option value="1" @selected($bool('fenilcetonuria') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="doencas_tireoidianas">Doenças tireoidianas</label>
+                <select class="form-select" name="doencas_tireoidianas" id="doencas_tireoidianas" required>
+                    <option value="0" @selected($bool('doencas_tireoidianas') === 0)>Não</option>
+                    <option value="1" @selected($bool('doencas_tireoidianas') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="hipertensao_cronica">Hipertensão crônica</label>
+                <select class="form-select" name="hipertensao_cronica" id="hipertensao_cronica" required>
+                    <option value="0" @selected($bool('hipertensao_cronica') === 0)>Não</option>
+                    <option value="1" @selected($bool('hipertensao_cronica') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="rubeola">Rubéola</label>
+                <select class="form-select" name="rubeola" id="rubeola" required>
+                    <option value="0" @selected($bool('rubeola') === 0)>Não</option>
+                    <option value="1" @selected($bool('rubeola') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="citomegalovirus">Citomegalovírus</label>
+                <select class="form-select" name="citomegalovirus" id="citomegalovirus" required>
+                    <option value="0" @selected($bool('citomegalovirus') === 0)>Não</option>
+                    <option value="1" @selected($bool('citomegalovirus') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="toxoplasmose">Toxoplasmose</label>
+                <select class="form-select" name="toxoplasmose" id="toxoplasmose" required>
+                    <option value="0" @selected($bool('toxoplasmose') === 0)>Não</option>
+                    <option value="1" @selected($bool('toxoplasmose') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="sifilis">Sífilis</label>
+                <select class="form-select" name="sifilis" id="sifilis" required>
+                    <option value="0" @selected($bool('sifilis') === 0)>Não</option>
+                    <option value="1" @selected($bool('sifilis') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="uso_isotretinoina">Uso de isotretinoína</label>
+                <select class="form-select" name="uso_isotretinoina" id="uso_isotretinoina" required>
+                    <option value="0" @selected($bool('uso_isotretinoina') === 0)>Não</option>
+                    <option value="1" @selected($bool('uso_isotretinoina') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="uso_acido_valproico">Uso de ácido valproico</label>
+                <select class="form-select" name="uso_acido_valproico" id="uso_acido_valproico" required>
+                    <option value="0" @selected($bool('uso_acido_valproico') === 0)>Não</option>
+                    <option value="1" @selected($bool('uso_acido_valproico') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="uso_litio">Uso de lítio</label>
+                <select class="form-select" name="uso_litio" id="uso_litio" required>
+                    <option value="0" @selected($bool('uso_litio') === 0)>Não</option>
+                    <option value="1" @selected($bool('uso_litio') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="uso_medicamentos">Uso de outros medicamentos</label>
+                <select class="form-select" name="uso_medicamentos" id="uso_medicamentos" required>
+                    <option value="0" @selected($bool('uso_medicamentos') === 0)>Não</option>
+                    <option value="1" @selected($bool('uso_medicamentos') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="tabagismo">Tabagismo</label>
+                <select class="form-select" name="tabagismo" id="tabagismo" required>
+                    <option value="0" @selected($bool('tabagismo') === 0)>Não</option>
+                    <option value="1" @selected($bool('tabagismo') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="alcoolismo">Alcoolismo</label>
+                <select class="form-select" name="alcoolismo" id="alcoolismo" required>
+                    <option value="0" @selected($bool('alcoolismo') === 0)>Não</option>
+                    <option value="1" @selected($bool('alcoolismo') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="drogas_ilicitas">Drogas ilícitas</label>
+                <select class="form-select" name="drogas_ilicitas" id="drogas_ilicitas" required>
+                    <option value="0" @selected($bool('drogas_ilicitas') === 0)>Não</option>
+                    <option value="1" @selected($bool('drogas_ilicitas') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="exposicao_ocupacional">Exposição ocupacional</label>
+                <select class="form-select" name="exposicao_ocupacional" id="exposicao_ocupacional" required>
+                    <option value="0" @selected($bool('exposicao_ocupacional') === 0)>Não</option>
+                    <option value="1" @selected($bool('exposicao_ocupacional') === 1)>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field-grid form-field-grid--2">
+            <div class="form-field">
+                <label class="form-label" for="usg_precoce_confirmada">USG precoce confirmada</label>
+                <select class="form-select" name="usg_precoce_confirmada" id="usg_precoce_confirmada" required>
+                    <option value="0" @selected($bool('usg_precoce_confirmada') === 0)>Não</option>
+                    <option value="1" @selected($bool('usg_precoce_confirmada') === 1)>Sim</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label class="form-label" for="tipo_gestacao">Tipo de gestação</label>
+                <select class="form-select" name="tipo_gestacao" id="tipo_gestacao">
+                    <option value="">Selecione…</option>
+                    <option value="única" @selected(old('tipo_gestacao', $c?->tipo_gestacao) === 'única')>Única</option>
+                    <option value="gemelar" @selected(old('tipo_gestacao', $c?->tipo_gestacao) === 'gemelar')>Gemelar</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-field">
+            <label class="form-label" for="corionicidade">Corionicidade</label>
+            <input class="form-input" type="text" name="corionicidade" id="corionicidade"
+                   value="{{ old('corionicidade', $c?->corionicidade) }}" placeholder="Ex.: monocoriônica, bicoriônica">
         </div>
         <div class="form-field">
             <label class="form-label" for="obesidade_pre_gestacional">Obesidade pré-gestacional</label>
