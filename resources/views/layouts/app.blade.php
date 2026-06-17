@@ -471,16 +471,36 @@
         table.data-table thead th.td-actions,
         table.data-table tbody td.td-actions {
             text-align: right;
-            white-space: nowrap;
-            min-width: 13.5rem;
+            vertical-align: middle;
+            min-width: 16.75rem;
+            width: 16.75rem;
         }
 
         table.data-table .td-actions-inner {
-            display: inline-flex;
-            flex-wrap: wrap;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
             justify-content: flex-end;
             align-items: center;
             gap: 6px;
+            width: max-content;
+            max-width: 100%;
+            margin-left: auto;
+        }
+
+        @media (max-width: 960px) {
+            table.data-table thead th.td-actions,
+            table.data-table tbody td.td-actions {
+                min-width: 7.25rem;
+                width: 7.25rem;
+            }
+
+            table.data-table .td-actions-inner {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+                margin-left: 0;
+            }
         }
 
         table.data-table th.td-nowrap,
@@ -556,7 +576,20 @@
             border: none;
             cursor: pointer;
             font-family: inherit;
+            line-height: 1.2;
+            white-space: nowrap;
+            flex: 0 0 auto;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
             transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+        }
+
+        @media (max-width: 960px) {
+            table.data-table .btn-table {
+                width: 100%;
+                padding: 8px 10px;
+            }
         }
 
         .btn-table:hover { transform: translateY(-1px); }
@@ -936,10 +969,6 @@
             table.data-table thead th {
                 font-size: 10px;
             }
-
-            table.data-table .td-actions-inner {
-                justify-content: flex-start;
-            }
         }
 
         @media (max-width: 480px) {
@@ -976,7 +1005,13 @@
             cursor: pointer;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
+            line-height: 1.2;
+            white-space: nowrap;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
             transition: all 0.3s;
             text-decoration: none;
         }
