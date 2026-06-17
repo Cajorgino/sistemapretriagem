@@ -375,6 +375,7 @@
         .table-container {
             width: 100%;
             max-width: 100%;
+            min-width: 0;
             overflow-x: auto;
             margin-top: 20px;
             border-radius: 20px;
@@ -384,12 +385,23 @@
                 0 0 0 1px rgba(127, 12, 26, 0.06);
             -webkit-overflow-scrolling: touch;
             overscroll-behavior-x: contain;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(127, 12, 26, 0.35) transparent;
+        }
+
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: rgba(127, 12, 26, 0.28);
+            border-radius: 999px;
         }
 
         .table-container--flush { margin-top: 0; }
 
         .table-scroll-hint {
-            display: none;
+            display: block;
             font-size: 12px;
             color: var(--muted);
             margin: 0 0 10px;
@@ -397,15 +409,13 @@
             line-height: 1.4;
         }
 
-        @media (max-width: 1024px) {
-            .table-scroll-hint { display: block; }
+        @media (min-width: 1280px) {
+            .table-scroll-hint { display: none; }
         }
 
-        /* Largura pelo conteúdo: evita esmagar colunas (CPF/telefone quebrando no meio).
-           O .table-container fornece rolagem horizontal. */
         table.data-table {
-            width: max-content;
-            min-width: 100%;
+            width: 100%;
+            min-width: 70rem;
             border-collapse: separate;
             border-spacing: 0;
             background: transparent;
@@ -414,21 +424,21 @@
         table.data-table thead th {
             position: sticky;
             top: 0;
-            z-index: 2;
+            z-index: 1;
             background: linear-gradient(180deg, #fff9f9 0%, #f8eaea 100%);
             color: var(--primary);
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            padding: 16px 20px;
+            padding: 14px 16px;
             text-align: left;
             border-bottom: 2px solid rgba(127, 12, 26, 0.14);
             white-space: nowrap;
         }
 
         table.data-table tbody td {
-            padding: 16px 20px;
+            padding: 14px 16px;
             font-size: 14px;
             color: var(--text);
             border-bottom: 1px solid rgba(240, 213, 213, 0.55);
@@ -458,43 +468,19 @@
             text-align: center;
         }
 
-        /* Coluna de ações fixa à direita ao rolar horizontalmente */
         table.data-table thead th.td-actions,
         table.data-table tbody td.td-actions {
-            position: sticky;
-            right: 0;
-        }
-
-        table.data-table thead th.td-actions {
-            z-index: 4;
-            background: linear-gradient(180deg, #fff9f9 0%, #f8eaea 100%);
-            box-shadow: -10px 0 18px rgba(127, 12, 26, 0.07);
-        }
-
-        table.data-table tbody td.td-actions {
-            z-index: 2;
             text-align: right;
             white-space: nowrap;
-            min-width: 220px;
-            vertical-align: middle;
-            background: var(--surface);
-            box-shadow: -8px 0 14px rgba(127, 12, 26, 0.06);
-        }
-
-        table.data-table tbody tr:nth-child(even) td.td-actions {
-            background: rgba(253, 240, 240, 0.95);
-        }
-
-        table.data-table tbody tr:hover td.td-actions {
-            background: rgba(127, 12, 26, 0.09);
+            min-width: 13.5rem;
         }
 
         table.data-table .td-actions-inner {
             display: inline-flex;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             justify-content: flex-end;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         table.data-table th.td-nowrap,
@@ -504,22 +490,50 @@
 
         table.data-table th.td-cell-nome,
         table.data-table td.td-cell-nome {
+            min-width: 9.5rem;
+            max-width: 15rem;
             white-space: normal;
             word-break: break-word;
-            max-width: min(12rem, 42vw);
-            min-width: 7rem;
+            line-height: 1.35;
         }
 
-        @media (min-width: 900px) {
-            table.data-table th.td-cell-nome,
-            table.data-table td.td-cell-nome {
-                max-width: 18rem;
-            }
+        table.data-table th.td-risco,
+        table.data-table td.td-risco {
+            min-width: 6.75rem;
+            white-space: nowrap;
+        }
+
+        table.data-table th.td-cpf,
+        table.data-table td.td-cpf {
+            min-width: 8.75rem;
+            white-space: nowrap;
+        }
+
+        table.data-table th.td-tel,
+        table.data-table td.td-tel {
+            min-width: 8.5rem;
+            white-space: nowrap;
+        }
+
+        table.data-table th.td-date,
+        table.data-table td.td-date {
+            min-width: 6.75rem;
+            white-space: nowrap;
+        }
+
+        table.data-table th.td-msg,
+        table.data-table td.td-msg {
+            min-width: 11rem;
+            max-width: 18rem;
+            white-space: normal;
+            word-break: break-word;
+            line-height: 1.4;
         }
 
         table.data-table th.td-num--narrow,
         table.data-table td.td-num--narrow {
             white-space: nowrap;
+            min-width: 4.75rem;
         }
 
         table.data-table tbody tr.data-table-empty td {

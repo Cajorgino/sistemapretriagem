@@ -3,6 +3,9 @@
 @section('title', 'Gestantes — Cardioprenatal')
 
 @section('content')
+@php
+    use App\Services\DashboardAnaliseService;
+@endphp
     <div class="page-header">
         <h1 class="page-title">Gestantes</h1>
         <p class="page-subtitle">Cadastro e acompanhamento das pacientes</p>
@@ -28,21 +31,35 @@
                     <tr>
                         <th class="td-cell-nome">Nome</th>
                         <th class="td-num td-num--narrow">Nº cadastro</th>
-                        <th class="td-nowrap">CPF</th>
-                        <th class="td-nowrap">Telefone</th>
-                        <th class="td-nowrap">Nascimento</th>
+                        <th class="td-risco">Risco</th>
+                        <th class="td-cpf">CPF</th>
+                        <th class="td-tel">Telefone</th>
+                        <th class="td-date">Nascimento</th>
                         <th class="td-num td-num--narrow">Consultas</th>
                         <th class="td-actions">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($gestantes as $gestante)
+                        @php
+                            $ua = $gestante->ultimaAnalise;
+                            $risco = ($ua && $ua->status === 'concluida') ? $ua->classificacao_risco : null;
+                        @endphp
                         <tr>
                             <td class="td-cell-nome"><strong>{{ $gestante->nome_exibicao }}</strong></td>
                             <td class="td-num td-num--narrow">#{{ $gestante->id }}</td>
-                            <td class="td-nowrap">{{ $gestante->cpf ? $gestante->cpf_formatado : '—' }}</td>
-                            <td class="td-nowrap">{{ $gestante->telefone ? $gestante->telefone_formatado : '—' }}</td>
-                            <td class="td-nowrap">{{ $gestante->data_nascimento ? \Carbon\Carbon::parse($gestante->data_nascimento)->format('d/m/Y') : '—' }}</td>
+                            <td class="td-risco">
+                                @if ($risco)
+                                    <span class="consulta-pill consulta-pill--{{ $risco === 'alto' ? 'alert' : ($risco === 'moderado' ? 'warn' : 'ok') }}" style="margin:0;">
+                                        {{ DashboardAnaliseService::labelRisco($risco) }}
+                                    </span>
+                                @else
+                                    <span style="color: var(--muted); font-size: 13px;">—</span>
+                                @endif
+                            </td>
+                            <td class="td-cpf">{{ $gestante->cpf ? $gestante->cpf_formatado : '—' }}</td>
+                            <td class="td-tel">{{ $gestante->telefone ? $gestante->telefone_formatado : '—' }}</td>
+                            <td class="td-date">{{ $gestante->data_nascimento ? \Carbon\Carbon::parse($gestante->data_nascimento)->format('d/m/Y') : '—' }}</td>
                             <td class="td-num td-num--narrow">{{ $gestante->consultas_count }}</td>
                             <td class="td-actions">
                                 <div class="td-actions-inner">
@@ -54,7 +71,7 @@
                         </tr>
                     @empty
                         <tr class="data-table-empty">
-                            <td colspan="7">Nenhuma gestante cadastrada.</td>
+                            <td colspan="8">Nenhuma gestante cadastrada.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -97,6 +114,10 @@
             </div>
         </div>
     </div>
+
+    <style>
+        .consulta-pill--warn { background: rgba(230, 126, 34, 0.15); color: #c0392b; border: 1px solid rgba(230, 126, 34, 0.35); }
+    </style>
 
     <script>
         (function () {

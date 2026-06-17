@@ -61,18 +61,19 @@
             </div>
         </form>
 
+        <p class="table-scroll-hint">↔ Deslize horizontalmente para ver todas as colunas.</p>
         <div class="table-container table-container--flush">
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Nome da gestante</th>
-                        <th class="td-num">Identificador</th>
-                        <th>CPF</th>
-                        <th>Telefone</th>
-                        <th>Última mensagem</th>
-                        <th>Tipo</th>
+                        <th class="td-cell-nome">Nome da gestante</th>
+                        <th class="td-num td-num--narrow">Identificador</th>
+                        <th class="td-cpf">CPF</th>
+                        <th class="td-tel">Telefone</th>
+                        <th class="td-msg">Última mensagem</th>
+                        <th class="td-nowrap">Tipo</th>
                         <th class="td-num">Tempo de atendimento</th>
-                        <th>
+                        <th class="td-date">
                             <a href="{{ route('historico-whatsapp.index', $sortQuery) }}"
                                style="color: inherit; text-decoration: none; border-bottom: 1px dashed rgba(127,12,26,0.35);">
                                 Data
@@ -108,14 +109,14 @@
                             $ultimaData = $row->ultima_data ? \Carbon\Carbon::parse($row->ultima_data)->timezone(config('app.timezone'))->format('d/m/Y H:i') : '—';
                         @endphp
                         <tr>
-                            <td><strong>{{ $row->nome_exibicao }}</strong></td>
-                            <td class="td-num"><strong>#{{ $row->id }}</strong></td>
-                            <td>{{ $row->cpf ? $row->cpf_formatado : '—' }}</td>
-                            <td>{{ $row->telefone ? $row->telefone_formatado : '—' }}</td>
-                            <td>{{ \Illuminate\Support\Str::limit($row->ultima_mensagem ?? '', 90) }}</td>
-                            <td>{{ $tipoLabel }}</td>
+                            <td class="td-cell-nome"><strong>{{ $row->nome_exibicao }}</strong></td>
+                            <td class="td-num td-num--narrow"><strong>#{{ $row->id }}</strong></td>
+                            <td class="td-cpf">{{ $row->cpf ? $row->cpf_formatado : '—' }}</td>
+                            <td class="td-tel">{{ $row->telefone ? $row->telefone_formatado : '—' }}</td>
+                            <td class="td-msg">{{ \Illuminate\Support\Str::limit($row->ultima_mensagem ?? '', 90) }}</td>
+                            <td class="td-nowrap">{{ $tipoLabel }}</td>
                             <td class="td-num">{{ $tempoFmt }}</td>
-                            <td>{{ $ultimaData }}</td>
+                            <td class="td-date">{{ $ultimaData }}</td>
                             <td class="td-actions">
                                 <div class="td-actions-inner">
                                     <button type="button"
