@@ -12,10 +12,8 @@
 <div class="page-header">
     <h1 class="page-title">Análise de risco</h1>
     <p class="page-subtitle">
-        Rastreio de cardiopatias congênitas em gestantes diabéticas.
-        As mesmas gestantes do cadastro, com as mais recentes primeiro.
+        Rastreio a partir da planilha. A lista mostra os campos que o modelo usa.
         @if ($dataset) Fonte: {{ $dataset }}. @endif
-        A predição usa o modelo a partir da consulta clínica.
     </p>
 </div>
 
@@ -61,12 +59,12 @@
                 <tr>
                     <th class="td-cell-nome">Nome</th>
                     <th>ID</th>
-                    <th class="td-num">Idade</th>
                     <th>Etnia</th>
-                    <th class="td-num">IMC</th>
-                    <th class="td-num">IG</th>
-                    <th class="td-num">Diabetes</th>
-                    <th class="td-num">HAS</th>
+                    <th>Paridade</th>
+                    <th class="td-num">IMC gestacional</th>
+                    <th class="td-num">Prematuridade</th>
+                    <th class="td-num">Diabetes gestacional</th>
+                    <th class="td-num">Cardiopatia confirmada</th>
                     <th class="td-actions">Ações</th>
                 </tr>
             </thead>
@@ -75,12 +73,33 @@
                     <tr>
                         <td class="td-cell-nome"><strong>{{ $g['nome'] ?? 'Não informado' }}</strong></td>
                         <td>{{ $g['id_gestante'] ?? 'Não informado' }}</td>
-                        <td class="td-num">{{ $g['idade_materna'] ?? 'Não informado' }}</td>
-                        <td>{{ $g['etnia'] ?? 'Não informado' }}</td>
-                        <td class="td-num">{{ $g['imc_pre_gestacional'] ?? 'Não informado' }}</td>
-                        <td class="td-num">{{ $g['idade_gestacional'] ?? 'Não informado' }}</td>
-                        <td class="td-num">{{ (int) ($g['diabetes'] ?? 0) }}</td>
-                        <td class="td-num">{{ (int) ($g['hipertensao'] ?? 0) }}</td>
+                        <td>{{ $g['etnia'] ?: 'Não informado' }}</td>
+                        <td>
+                            @php
+                                $rotuloParidade = match ((string) ($g['paridade'] ?? '')) {
+                                    '0' => 'Primigesta',
+                                    '1' => '1 filho',
+                                    '2' => '2 filhos',
+                                    '3' => 'Mais de 3 filhos',
+                                    default => 'Não informado',
+                                };
+                            @endphp
+                            {{ $g['paridade'] === null || $g['paridade'] === '' ? 'Não informado' : $rotuloParidade }}
+                        </td>
+                        <td class="td-num">
+                            @php
+                                $faixa = match ((int) ($g['imc_gestacional_categoria'] ?? -99)) {
+                                    0 => 'Normal',
+                                    1 => 'Acima de 24,9',
+                                    2 => 'Abaixo de 18,5',
+                                    default => 'Não informado',
+                                };
+                            @endphp
+                            {{ $g['imc_gestacional_categoria'] === null || $g['imc_gestacional_categoria'] === '' ? 'Não informado' : $faixa }}
+                        </td>
+                        <td class="td-num">{{ (int) ($g['prematuridade'] ?? 0) ? 'Sim' : 'Não' }}</td>
+                        <td class="td-num">{{ (int) ($g['diabetes_gestacional'] ?? 0) ? 'Sim' : 'Não' }}</td>
+                        <td class="td-num">{{ (int) ($g['chd_confirmada'] ?? 0) ? 'Sim' : 'Não' }}</td>
                         <td class="td-actions">
                             <a href="{{ route('cohort.gestantes.show', $g['id_gestante']) }}" class="btn-primary-custom" style="padding: 6px 12px; font-size: 13px;">
                                 Ver / analisar

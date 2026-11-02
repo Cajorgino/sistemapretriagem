@@ -406,21 +406,7 @@ TXT;
      */
     public function menuInicial(string $nome, array $ctx = []): string
     {
-        $saudacao = $this->menuInicialSaudacao($nome, $ctx);
-        $opcoes = $this->menuInicialNumerado();
-
-        return $saudacao."\n\n".$opcoes;
-    }
-
-    public function menuInicialNumerado(): string
-    {
-        return <<<'TXT'
-Se preferir, envie o número da opção:
-
-1. Falar com atendente
-2. Exames e consultas
-3. Falar com o médico
-TXT;
+        return $this->menuInicialSaudacao($nome, $ctx);
     }
 
     /**
@@ -478,7 +464,7 @@ TXT;
     /**
      * Intenção em linguagem natural (não é clique/número do menu).
      *
-     * @return 'exames_dados'|'consultas_dados'|'compromissos'|'sintoma'|'interpretacao'|null
+     * @return 'exames_dados'|'consultas_dados'|'compromissos'|'sintoma'|'interpretacao'|'fim_gestacao'|null
      */
     public function matchIntencaoLivre(?string $mensagem): ?string
     {
@@ -487,6 +473,9 @@ TXT;
             return null;
         }
 
+        if ($this->textoFimGestacao($t)) {
+            return 'fim_gestacao';
+        }
         if ($this->textoPedidoInterpretacao($t)) {
             return 'interpretacao';
         }
@@ -504,6 +493,60 @@ TXT;
         }
 
         return null;
+    }
+
+    /**
+     * Declaração de que a pessoa não está (mais) grávida / gestação encerrada.
+     */
+    public function textoFimGestacao(?string $mensagem): bool
+    {
+        $t = $this->normalizarTextoMenu($mensagem);
+        if ($t === '') {
+            return false;
+        }
+
+        $frases = [
+            'nao estou mais gravida',
+            'nao estou gravida',
+            'nao to mais gravida',
+            'nao to gravida',
+            'ja nao estou gravida',
+            'ja nao to gravida',
+            'nao sou mais gestante',
+            'perdi o bebe',
+            'tive um aborto',
+            'aborto',
+            'nao estou gestante',
+            'nao to gestante',
+            'gestacao acabou',
+            'gravidez acabou',
+            'nao estou mais em gestacao',
+        ];
+
+        foreach ($frases as $f) {
+            if (str_contains($t, $f)) {
+                return true;
+            }
+        }
+
+        return (bool) preg_match('/\bnao\s+(estou|to|sou)\s+(mais\s+)?(gravida|gestante)\b/u', $t);
+    }
+
+    /**
+     * Mensagem pronta quando a pessoa declara que não está mais grávida.
+     */
+    public function mensagemForaEscopoNaoGestante(string $primeiroNome = ''): string
+    {
+        $nome = trim($primeiroNome);
+        $vocativo = $nome !== '' ? ", {$nome}" : '';
+
+        return <<<TXT
+Sinto muito por isso{$vocativo}. Este canal do Cardioprenatal é exclusivo para gestantes em acompanhamento do rastreio de cardiopatias congênitas.
+
+Como você relatou que não está mais grávida, oriente-se com a sua equipe de saúde ou uma unidade de atendimento para o acompanhamento adequado. Por aqui não damos continuidade a esse tipo de conversa.
+
+Se no futuro você estiver em pré-natal conosco novamente, é só escrever.
+TXT;
     }
 
     public function textoRelatoSintoma(string $t): bool
@@ -853,16 +896,17 @@ TXT;
     public function instrucoesConversaSintoma(): string
     {
         return <<<'TXT'
-MODO CONVERSA (relato de sintoma) — VOCÊ responde agora. O backend não envia texto pronto.
-- Responda sempre: calorosa, natural, em português, 2 a 5 frases. Não deixe a gestante sem resposta.
-- Use o primeiro nome se estiver neste contexto. Use só dados de consulta/prontuário listados abaixo; não invente.
-- Primeira mensagem do relato: acolha e faça 1 ou 2 perguntas (há quanto tempo; leve/moderada/forte).
-  Exemplo de tom: “Sinto muito que você esteja com dor na barriga, {nome}. 💙 Vamos entender um pouquinho melhor. Há quanto tempo essa dor começou? Ela está leve, moderada ou forte?”
-- Mensagens seguintes: NÃO repita o acolhimento inicial. Continue a partir do que ela acabou de dizer (duração, intensidade, se é contínua, outros sintomas).
-- Não comece com “não posso avaliar sintomas”. Não diagnostique, não diga se é normal ou grave, não indique medicamento.
-- Se houver sinal de alerta (sangramento, falta de ar, dor muito forte, desmaio, visão embaçada), oriente a procurar atendimento e diga que a equipe do pré-natal foi avisada.
-- Depois de entender o relato, ofereça encaminhar para a equipe. Enviar 0 volta ao menu inicial.
-- Não peça CPF, telefone nem dados que já estejam neste contexto.
+MODO CONVERSA ÍNTIMA (sintoma na GESTAÇÃO) — VOCÊ responde agora.
+- Tom: próxima, humana, como quem acompanha a gestante — não formulário nem call center.
+- Escopo: sintomas no pré-natal Cardioprenatal. Não invente contextos que ela não escreveu.
+- 2 a 4 frases, português natural. Use o primeiro nome com carinho (não em toda frase).
+- Retome o que ela disse (“entendi que a dor…”) antes de perguntar.
+- Primeira mensagem do relato: acolha de verdade e faça SÓ 1 pergunta (tempo OU intensidade).
+- Mensagens seguintes: continue o fio; NÃO repita acolhimento nem “não substitui consulta”.
+- Não diagnostique, não diga se é normal/grave, não indique medicamento.
+- Sinal de alerta (sangramento, falta de ar, dor forte, desmaio, visão escurecendo): acolha, oriente unidade/equipe com calma, diga que a equipe do pré-natal foi avisada.
+- Quando fizer sentido, ofereça encaminhar para a equipe. 0 = menu.
+- Não peça CPF/telefone nem dados que já estejam no contexto.
 TXT;
     }
 

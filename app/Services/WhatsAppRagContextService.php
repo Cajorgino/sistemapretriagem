@@ -22,6 +22,12 @@ use Illuminate\Support\Str;
  */
 class WhatsAppRagContextService implements RagContextBuilder
 {
+    private const HISTORICO_LIMIT = 20;
+
+    private const HISTORICO_TEXT_LIMIT = 400;
+
+    private const INTERPRETACAO_LIMIT = 500;
+
     public function __construct(
         private WhatsAppMessageTemplates $templates,
     ) {}
@@ -41,7 +47,9 @@ class WhatsAppRagContextService implements RagContextBuilder
      *   fluxo_estado: string|null,
      *   intencao: string,
      *   resumo_prenatal: string,
-     *   nome: string|null
+     *   nome: string|null,
+     *   patient_snapshot: array<string, mixed>,
+     *   historico_conversa: list<array{role: string, text: string, at: string|null}>
      * }
      */
     public function buildForTelefone(string $telefoneRaw, ?string $mensagem = null, int $topK = 6): array
@@ -61,6 +69,11 @@ class WhatsAppRagContextService implements RagContextBuilder
             'intencao' => 'conversa_livre',
             'resumo_prenatal' => '',
             'nome' => null,
+            'patient_snapshot' => [],
+            'historico_conversa' => [],
+            'gestacao_ativa' => false,
+            'fora_escopo' => false,
+            'escopo' => 'gestante_em_acompanhamento',
         ];
 
         $normalized = preg_replace('/\D/', '', $telefoneRaw) ?: '';
@@ -91,7 +104,9 @@ class WhatsAppRagContextService implements RagContextBuilder
      *   fluxo_estado: string|null,
      *   intencao: string,
      *   resumo_prenatal: string,
-     *   nome: string|null
+     *   nome: string|null,
+     *   patient_snapshot: array<string, mixed>,
+     *   historico_conversa: list<array{role: string, text: string, at: string|null}>
      * }
      */
     public function buildForGestante(Gestante $gestante, ?string $mensagem = null, int $topK = 6, string $canal = GestanteCanal::CANAL_WHATSAPP): array
@@ -101,61 +116,108 @@ class WhatsAppRagContextService implements RagContextBuilder
         $modoSintoma = $fluxoEstado === WhatsAppFluxoEstado::CONVERSA_SINTOMA || $menuOpcao === 'sintoma';
         $intencaoLivre = $this->templates->matchIntencaoLivre($mensagem);
         $opcaoMenu = $this->templates->matchMenuOpcao($mensagem) ?: $menuOpcao;
-        $usarProntuario = in_array($intencaoLivre, ['exames_dados', 'consultas_dados', 'compromissos'], true);
-
-        $chunks = [];
-        $ranked = [];
-        if ($usarProntuario) {
-            $chunks = $this->collectChunks($gestante, $canal);
-            $ranked = $this->rankChunks($chunks, $mensagem, $topK);
-        }
-
-        $linhas = [];
-        foreach ($ranked as $i => $c) {
-            $n = $i + 1;
-            $linhas[] = "[{$n}] ({$c['source']}) {$c['title']}: {$c['text']}";
-        }
-
-        $contexto = $linhas === []
-            ? 'Nenhum documento clínico indexado para esta gestante.'
-            : "Documentos recuperados do prontuário (use apenas se forem relevantes; não invente):\n".implode("\n", $linhas);
+        $usarProntuarioCompleto = in_array($intencaoLivre, ['exames_dados', 'consultas_dados', 'compromissos'], true);
+        $modoSintomaAtivo = $modoSintoma || $intencaoLivre === 'sintoma';
+        $foraEscopoFimGestacao = $intencaoLivre === 'fim_gestacao';
 
         $pularIa = $gestante->whatsappIaPausada();
         $ctx = $this->templates->contextFromGestante($gestante);
-        $resumoPrenatal = $this->montarResumoPrenatal($ctx);
-        $historicoConversa = $this->montarHistoricoConversa($gestante, $canal);
+        $patientSnapshot = $this->montarPatientSnapshot($gestante, $ctx);
+        $gestacaoAtiva = $this->inferirGestacaoAtiva($patientSnapshot, $ctx);
+        $patientSnapshot['gestacao_ativa'] = $gestacaoAtiva;
+        $patientSnapshot['escopo'] = 'gestante_em_acompanhamento';
+
+        $todosChunks = $this->collectChunks($gestante, $canal);
+        $ranked = [];
+        $totalFontes = count($todosChunks);
+
+        if (! $foraEscopoFimGestacao) {
+            if ($usarProntuarioCompleto) {
+                $ranked = $this->rankChunks($todosChunks, $mensagem, $topK);
+            } elseif ($modoSintomaAtivo || $menuOpcao === null || $menuOpcao === 'exames' || $intencaoLivre === null) {
+                // Conversa livre / sintoma: snapshot + últimas consultas/WhatsApp obrigatórios.
+                $ranked = $this->garantirContextoConversa($todosChunks, $this->rankChunks($todosChunks, $mensagem, $topK), $topK);
+            }
+        }
+
+        $linhasChunks = [];
+        foreach ($ranked as $i => $c) {
+            $n = $i + 1;
+            $linhasChunks[] = "[{$n}] ({$c['source']}) {$c['title']}: {$c['text']}";
+        }
+
+        $blocoChunks = $linhasChunks === []
+            ? ''
+            : "Trechos do prontuário / conversa (use apenas se forem relevantes; não invente):\n".implode("\n", $linhasChunks);
+
+        $resumoPrenatal = $this->montarResumoPrenatal($ctx, $patientSnapshot);
+        $historicoConversa = $this->montarHistoricoConversaEstruturado($gestante, $canal);
+        $historicoTexto = $this->formatarHistoricoConversa($historicoConversa);
 
         $regras = <<<'TXT'
 REGRAS OBRIGATÓRIAS (não viole):
-- Nunca invente informações da gestante, exames, resultados, consultas, datas, horários, profissionais ou locais.
+- Este canal é para gestantes em acompanhamento Cardioprenatal. Quem já está cadastrada neste chat deve ser tratada como gestante do serviço (falta de IG no prontuário NÃO encerra o atendimento).
+- Tom íntimo e humano; evite frases robóticas repetidas.
+- Nunca invente informações da gestante, exames, resultados, consultas, datas, horários, profissionais, locais, passeios ou histórias.
 - Nunca afirme que uma informação existe se ela não estiver neste contexto.
 - Não indique medicamentos nem faça diagnóstico.
 - Se o dado não estiver aqui, diga que a informação não está disponível no sistema e ofereça encaminhamento à equipe.
 - Não complete lacunas com conhecimento médico geral. Não altere dados retornados.
+- Há um PatientSnapshot clínico disponível: use-o. Não verbalize classificação de risco de ML de forma alarmista.
+- Não repita em toda mensagem o aviso “este canal não substitui consulta” — no máximo uma vez se ainda não foi dito no histórico recente.
 TXT;
 
-        if ($usarProntuario) {
-            $contexto = $regras."\n\nA gestante pediu informações de consulta, exame ou compromisso. Use apenas os registros abaixo; não invente datas nem resultados.\n\n".$resumoPrenatal."\n\n".$contexto;
-        } elseif ($modoSintoma || $intencaoLivre === 'sintoma') {
-            $contexto = $this->templates->instrucoesConversaSintoma()
+        $blocoSnapshot = $this->formatarPatientSnapshot($patientSnapshot);
+
+        if ($foraEscopoFimGestacao) {
+            $contexto = "FORA DE ESCOPO: a pessoa declarou que não está (mais) grávida.\n"
+                ."Resposta curta: acolha, diga que o Cardioprenatal é só para gestantes em acompanhamento, oriente procurar a equipe/unidade de saúde e encerre. Não continue conversa clínica.\n\n"
+                .$blocoSnapshot
+                ."\n\n".$historicoTexto;
+        } elseif ($usarProntuarioCompleto) {
+            $contexto = $regras
+                ."\n\nA gestante pediu informações de consulta, exame ou compromisso. Use apenas os registros abaixo; não invente datas nem resultados."
+                ."\n\n".$blocoSnapshot
                 ."\n\n".$resumoPrenatal
-                ."\n\n".$historicoConversa;
+                .($blocoChunks !== '' ? "\n\n".$blocoChunks : '')
+                ."\n\n".$historicoTexto;
+        } elseif ($modoSintomaAtivo) {
+            $contexto = $this->templates->instrucoesConversaSintoma()
+                ."\n\n".$regras
+                ."\n\n".$blocoSnapshot
+                ."\n\n".$resumoPrenatal
+                .($blocoChunks !== '' ? "\n\n".$blocoChunks : '')
+                ."\n\n".$historicoTexto;
         } elseif ($menuOpcao === 'atendente') {
-            $contexto = "A gestante pediu falar com atendente. Não responda a dúvida médica; o backend registra a solicitação.";
+            $contexto = "A gestante pediu falar com atendente. Não responda a dúvida médica; o backend registra a solicitação."
+                ."\n\n".$blocoSnapshot
+                ."\n\n".$historicoTexto;
         } elseif ($menuOpcao === 'medico') {
-            $contexto = "A gestante pediu falar com o médico. Não avalie clinicamente; o backend registra a solicitação.";
+            $contexto = "A gestante pediu falar com o médico. Não avalie clinicamente; o backend registra a solicitação."
+                ."\n\n".$blocoSnapshot
+                ."\n\n".$historicoTexto;
         } else {
-            $contexto = "Converse de forma natural e acolhedora. ".$resumoPrenatal."\n\n".$historicoConversa;
+            $contexto = "Converse de forma ÍNTIMA e acolhedora com a gestante (como companheira de cuidado do pré-natal), "
+                ."SOMENTE no escopo gestação/pré-natal/Cardioprenatal. Use o primeiro nome com naturalidade. "
+                ."Mostre que ouviu o que ela disse. Em bate-papo leve (passeio, esporte sem sintoma), responda com carinho em 1–2 frases "
+                ."e volte gentilmente ao cuidado (“como você está se sentindo na gestação?”). Não invente locais nem histórias."
+                ."\n\n".$regras
+                ."\n\n".$blocoSnapshot
+                ."\n\n".$resumoPrenatal
+                .($blocoChunks !== '' ? "\n\n".$blocoChunks : '')
+                ."\n\n".$historicoTexto;
         }
 
         $intencao = match ($intencaoLivre ?? $opcaoMenu) {
             'atendente' => 'atendimento_humano',
             'medico', 'interpretacao' => 'falar_medico',
             'exames', 'exames_dados', 'consultas_dados', 'compromissos' => 'exames_consultas',
+            'sintoma' => 'sintoma',
+            'fim_gestacao' => 'fora_escopo',
             default => 'conversa_livre',
         };
-        if (($modoSintoma || $intencaoLivre === 'sintoma') && ! $usarProntuario) {
-            $intencao = 'conversa_livre';
+        if ($modoSintomaAtivo && $intencao === 'conversa_livre') {
+            $intencao = 'sintoma';
         }
 
         $estadosComRespostaPronta = [
@@ -177,9 +239,9 @@ TXT;
             'contexto_texto' => $contexto,
             'resumo_prenatal' => $resumoPrenatal,
             'nome' => $ctx['primeiro_nome'] ?: null,
-            'total_fontes' => count($chunks),
+            'total_fontes' => $totalFontes,
             'pular_ia' => $pularIa || (
-                ! $modoSintoma && in_array($fluxoEstado, $estadosComRespostaPronta, true)
+                ! $modoSintomaAtivo && in_array($fluxoEstado, $estadosComRespostaPronta, true)
             ),
             'atendimento_humano' => $pularIa,
             'ia_pausada_ate' => $pularIa
@@ -188,7 +250,29 @@ TXT;
             'menu_opcao' => $menuOpcao,
             'fluxo_estado' => $fluxoEstado,
             'intencao' => $intencao,
+            'patient_snapshot' => $patientSnapshot,
+            'historico_conversa' => $historicoConversa,
+            'gestacao_ativa' => $gestacaoAtiva,
+            'fora_escopo' => $foraEscopoFimGestacao,
+            'escopo' => 'gestante_em_acompanhamento',
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $ctx
+     */
+    private function inferirGestacaoAtiva(array $snapshot, array $ctx): bool
+    {
+        $ig = $snapshot['idade_gestacional'] ?? $ctx['idade_gestacional'] ?? null;
+        if ($ig !== null && $ig !== '' && is_numeric($ig) && (float) $ig > 0) {
+            return true;
+        }
+
+        return filled($snapshot['data_ultima_consulta'] ?? null)
+            || filled($ctx['data_ultima_consulta'] ?? null)
+            || filled($snapshot['data_agendada'] ?? null)
+            || filled($ctx['data_agendada'] ?? null);
     }
 
     /**
@@ -325,13 +409,13 @@ TXT;
             ];
         }
 
-        $msgs = $this->mensagensDoCanal($gestante, $canal, 12);
+        $msgs = $this->mensagensDoCanal($gestante, $canal, self::HISTORICO_LIMIT);
 
         foreach ($msgs as $m) {
             $out[] = [
                 'source' => 'whatsapp_'.$m->tipo,
-                'title' => 'Mensagem anterior ('.$m->tipo.')',
-                'text' => Str::limit((string) $m->mensagem, 280, '…'),
+                'title' => 'Mensagem anterior ('.$m->remetenteLabel().')',
+                'text' => Str::limit((string) $m->mensagem, self::HISTORICO_TEXT_LIMIT, '…'),
                 'score' => 0.0,
             ];
         }
@@ -464,7 +548,7 @@ TXT;
     }
 
     /**
-     * Garante consulta recente e histórico do WhatsApp no contexto da conversa de sintoma.
+     * Garante consulta recente e histórico do WhatsApp no contexto da conversa.
      *
      * @param  list<array{source: string, title: string, text: string, score: float}>  $todos
      * @param  list<array{source: string, title: string, text: string, score: float}>  $ranked
@@ -474,7 +558,7 @@ TXT;
     {
         $consultas = array_values(array_filter($todos, fn (array $c): bool => $c['source'] === 'consulta'));
         $whatsapp = array_values(array_filter($todos, fn (array $c): bool => str_starts_with($c['source'], 'whatsapp_')));
-        $obrigatorios = array_merge(array_slice($consultas, 0, 2), $whatsapp);
+        $obrigatorios = array_merge(array_slice($consultas, 0, 2), array_slice($whatsapp, -8));
 
         $vistos = [];
         $out = [];
@@ -493,18 +577,291 @@ TXT;
         return $out;
     }
 
-    private function montarHistoricoConversa(Gestante $gestante, string $canal = GestanteCanal::CANAL_WHATSAPP): string
+    /**
+     * Campos booleanos da última consulta → sempre sim/não no snapshot.
+     *
+     * @return array<string, string>
+     */
+    private function catalogoFlagsClinicos(): array
     {
-        $msgs = $this->mensagensDoCanal($gestante, $canal, 12);
+        return [
+            'diabetes_pre_gestacional' => 'Diabetes pré-gestacional',
+            'diabetes_gestacional' => 'Diabetes gestacional',
+            'hipertensao' => 'Hipertensão',
+            'hipertensao_cronica' => 'Hipertensão crônica',
+            'hipertensao_pre_eclampsia' => 'Pré-eclâmpsia',
+            'eclampsia' => 'Eclâmpsia',
+            'obesidade_pre_gestacional' => 'Obesidade pré-gestacional',
+            'historico_familiar_chd' => 'Histórico familiar de cardiopatia congênita',
+            'historico_natimorto' => 'Histórico de natimorto',
+            'historico_filho_anterior_chd' => 'Filho anterior com cardiopatia congênita',
+            'uso_medicamentos' => 'Uso de medicamentos',
+            'uso_isotretinoina' => 'Uso de isotretinoína',
+            'uso_acido_valproico' => 'Uso de ácido valpróico',
+            'uso_litio' => 'Uso de lítio',
+            'licitas_teratogenicas' => 'Exposição a substâncias lícitas teratogênicas',
+            'tabagismo' => 'Tabagismo',
+            'alcoolismo' => 'Álcool',
+            'drogas_ilicitas' => 'Drogas ilícitas',
+            'exposicao_ocupacional' => 'Exposição ocupacional',
+            'lupus_eritomatoso_sistemico' => 'Lúpus',
+            'sindrome_sjogren' => 'Síndrome de Sjögren',
+            'fenilcetonuria' => 'Fenilcetonúria',
+            'doencas_tireoidianas' => 'Doenças tireoidianas',
+            'hipotireoidismo' => 'Hipotireoidismo',
+            'hipertireoidismo' => 'Hipertireoidismo',
+            'rubeola' => 'Rubéola',
+            'citomegalovirus' => 'Citomegalovírus',
+            'toxoplasmose' => 'Toxoplasmose',
+            'sifilis' => 'Sífilis',
+            'infeccao_materna_bacteriana' => 'Infecção materna bacteriana',
+            'usg_precoce_confirmada' => 'USG precoce confirmada',
+            'prematuridade' => 'Prematuridade',
+            'translucencia_nucal_aumentada' => 'Translucência nucal aumentada',
+            'regurgitacao_tricuspide_fetal' => 'Regurgitação tricúspide fetal',
+            'malformacoes_extracardiacas_associadas' => 'Malformações extracardíacas',
+            'crescimento_fetal_rcf_iugr' => 'Restrição de crescimento fetal (RCF/IUGR)',
+            'chd_confirmada' => 'Cardiopatia congênita confirmada',
+        ];
+    }
 
-        if ($msgs->isEmpty()) {
+    /**
+     * Medidas / textos da última consulta (só entram se preenchidos).
+     *
+     * @return array<string, string>
+     */
+    private function catalogoMedidasClinicas(): array
+    {
+        return [
+            'consulta_numero' => 'Número da consulta',
+            'idade_materna' => 'Idade materna',
+            'idade_gestacional' => 'Idade gestacional (semanas)',
+            'etnia' => 'Etnia',
+            'paridade' => 'Paridade',
+            'abortamentos_previos' => 'Abortamentos prévios',
+            'imc_pre_gestacional' => 'IMC pré-gestacional',
+            'imc_gestacional_categoria' => 'Categoria IMC gestacional',
+            'pressao_sistolica' => 'PA sistólica',
+            'bpm_materno' => 'FC materna',
+            'saturacao' => 'Saturação',
+            'temperatura_corporal' => 'Temperatura corporal',
+            'altura' => 'Altura',
+            'peso' => 'Peso',
+            'glicemia_jejum' => 'Glicemia jejum',
+            'glicemia_pos_prandial' => 'Glicemia pós-prandial',
+            'hba1c' => 'HbA1c',
+            'tipo_gestacao' => 'Tipo de gestação',
+            'corionicidade' => 'Corionicidade',
+            'frequencia_cardiaca_fetal' => 'FC fetal',
+            'circunferencia_cefalica_fetal_mm' => 'Circunferência cefálica fetal (mm)',
+            'circunferencia_abdominal_mm' => 'Circunferência abdominal (mm)',
+            'comprimento_femur_mm' => 'Comprimento do fêmur (mm)',
+            'translucencia_nucal_mm' => 'Translucência nucal (mm)',
+            'doppler_ducto_venoso' => 'Doppler ducto venoso',
+            'polidramnio_oligoidramnio' => 'Polidrâmnio/oligoidrâmnio',
+            'eixo_cardiaco' => 'Eixo cardíaco',
+            'quatro_camaras' => 'Quatro câmaras',
+            'tipo_chd' => 'Tipo de cardiopatia congênita',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $ctx
+     * @return array<string, mixed>
+     */
+    private function montarPatientSnapshot(Gestante $gestante, array $ctx): array
+    {
+        $consulta = $gestante->consultas()
+            ->orderByDesc('consulta_numero')
+            ->orderByDesc('id')
+            ->first();
+
+        $analise = AnaliseHistorico::query()
+            ->where('gestante_id', $gestante->id)
+            ->where('status', 'concluida')
+            ->latest('id')
+            ->first();
+
+        $interp = InterpretacaoClinica::query()
+            ->where('gestante_id', $gestante->id)
+            ->whereIn('status', [
+                InterpretacaoClinica::STATUS_CONCLUIDA,
+                InterpretacaoClinica::STATUS_CACHE_HIT,
+            ])
+            ->latest('id')
+            ->first();
+
+        $analiseLinha = null;
+        if ($analise) {
+            $bits = array_filter([
+                $analise->classificacao_risco ? 'risco '.$analise->classificacao_risco : null,
+                $analise->recomenda_ecocardiograma ? 'eco recomendada' : null,
+                $analise->prioridade_ecocardiograma ? 'prioridade '.$analise->prioridade_ecocardiograma : null,
+            ]);
+            $analiseLinha = $bits !== [] ? implode('; ', $bits) : null;
+        }
+
+        $snapshot = [
+            'primeiro_nome' => $ctx['primeiro_nome'] ?: null,
+            'data_ultima_consulta' => $ctx['data_ultima_consulta'] ?? ($consulta?->data_consulta?->format('d/m/Y')),
+            'data_agendada' => $ctx['data_agendada'] ?? null,
+            'analise_resumo' => $analiseLinha,
+            'interpretacao_resumo' => $interp && filled($interp->resumo_gestante)
+                ? Str::limit((string) $interp->resumo_gestante, self::INTERPRETACAO_LIMIT, '…')
+                : null,
+        ];
+
+        if ($consulta === null) {
+            $snapshot['idade_gestacional'] = $ctx['idade_gestacional'] ?? null;
+            $snapshot['pressao_sistolica'] = $ctx['pressao_sistolica'] ?? null;
+            $snapshot['bpm_materno'] = $ctx['bpm_materno'] ?? null;
+            $snapshot['peso'] = $ctx['peso'] ?? null;
+            $snapshot['saturacao'] = $ctx['saturacao'] ?? null;
+
+            return $snapshot;
+        }
+
+        foreach ($this->catalogoMedidasClinicas() as $campo => $_label) {
+            $val = $consulta->{$campo} ?? null;
+            if ($val === null || $val === '') {
+                // Preferências do contextFromGestante quando a consulta não tem o valor
+                if ($campo === 'idade_gestacional' && ! empty($ctx['idade_gestacional'])) {
+                    $snapshot[$campo] = $ctx['idade_gestacional'];
+                } elseif ($campo === 'pressao_sistolica' && isset($ctx['pressao_sistolica'])) {
+                    $snapshot[$campo] = $ctx['pressao_sistolica'];
+                } elseif ($campo === 'bpm_materno' && isset($ctx['bpm_materno'])) {
+                    $snapshot[$campo] = $ctx['bpm_materno'];
+                } elseif ($campo === 'peso' && isset($ctx['peso'])) {
+                    $snapshot[$campo] = $ctx['peso'];
+                } elseif ($campo === 'saturacao' && isset($ctx['saturacao'])) {
+                    $snapshot[$campo] = $ctx['saturacao'];
+                }
+                continue;
+            }
+            $snapshot[$campo] = $val;
+        }
+
+        foreach (array_keys($this->catalogoFlagsClinicos()) as $campo) {
+            $snapshot[$campo] = (bool) ($consulta->{$campo} ?? false);
+        }
+
+        return $snapshot;
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function formatarPatientSnapshot(array $snapshot): string
+    {
+        $linhas = ['PatientSnapshot (fonte Laravel — use quando relevante; não invente campos ausentes):'];
+        $temDado = false;
+
+        $cabecalho = [
+            'primeiro_nome' => 'Primeiro nome',
+            'data_ultima_consulta' => 'Data da última consulta',
+            'data_agendada' => 'Compromisso agendado',
+        ];
+        foreach ($cabecalho as $key => $label) {
+            $val = $snapshot[$key] ?? null;
+            if ($val === null || $val === '') {
+                continue;
+            }
+            $temDado = true;
+            $linhas[] = '- '.$label.': '.$val;
+        }
+
+        $linhas[] = 'Medidas / dados da última consulta:';
+        $temMedida = false;
+        foreach ($this->catalogoMedidasClinicas() as $key => $label) {
+            if (! array_key_exists($key, $snapshot)) {
+                continue;
+            }
+            $val = $snapshot[$key];
+            if ($val === null || $val === '') {
+                continue;
+            }
+            $temDado = true;
+            $temMedida = true;
+            $linhas[] = '- '.$label.': '.$val;
+        }
+        if (! $temMedida) {
+            $linhas[] = '- (sem medidas preenchidas)';
+        }
+
+        $linhas[] = 'Condições / fatores marcados no cadastro (sim/não):';
+        $temFlag = false;
+        foreach ($this->catalogoFlagsClinicos() as $key => $label) {
+            if (! array_key_exists($key, $snapshot) || $snapshot[$key] === null) {
+                continue;
+            }
+            $temDado = true;
+            $temFlag = true;
+            $linhas[] = '- '.$label.': '.($snapshot[$key] ? 'sim' : 'não');
+        }
+        if (! $temFlag) {
+            $linhas[] = '- (sem consulta cadastrada para flags)';
+        }
+
+        if (! empty($snapshot['analise_resumo'])) {
+            $temDado = true;
+            $linhas[] = '- Última análise ML (não alarmar a gestante): '.$snapshot['analise_resumo'];
+        }
+        if (! empty($snapshot['interpretacao_resumo'])) {
+            $temDado = true;
+            $linhas[] = '- Resumo da última interpretação: '.$snapshot['interpretacao_resumo'];
+        }
+
+        if (! $temDado) {
+            return 'PatientSnapshot: sem dados clínicos cadastrados além do histórico de mensagens.';
+        }
+
+        $linhas[] = 'Se perguntarem se tem hipertensão, diabetes, lúpus etc.: responda só com o sim/não do cadastro acima e oriente a equipe se precisar confirmar.';
+
+        return implode("\n", $linhas);
+    }
+
+    /**
+     * @return list<array{role: string, text: string, at: string|null}>
+     */
+    private function montarHistoricoConversaEstruturado(Gestante $gestante, string $canal = GestanteCanal::CANAL_WHATSAPP): array
+    {
+        $msgs = $this->mensagensDoCanal($gestante, $canal, self::HISTORICO_LIMIT);
+        $out = [];
+
+        foreach ($msgs as $m) {
+            $role = match ($m->remetente()) {
+                GestanteWhatsapp::REMETENTE_PACIENTE => 'user',
+                GestanteWhatsapp::REMETENTE_SISTEMA => 'assistant',
+                default => 'staff',
+            };
+
+            $out[] = [
+                'role' => $role,
+                'text' => Str::limit((string) $m->mensagem, self::HISTORICO_TEXT_LIMIT, '…'),
+                'at' => $m->created_at?->toIso8601String(),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<array{role: string, text: string, at: string|null}>  $historico
+     */
+    private function formatarHistoricoConversa(array $historico): string
+    {
+        if ($historico === []) {
             return 'Ainda não há histórico de mensagens desta conversa.';
         }
 
-        $linhas = ['Histórico recente desta conversa (não invente falas que não estejam aqui):'];
-        foreach ($msgs as $m) {
-            $quem = $m->tipo === 'entrada' ? 'Gestante' : 'Assistente';
-            $linhas[] = '- '.$quem.': '.Str::limit((string) $m->mensagem, 280, '…');
+        $linhas = ['Histórico recente desta conversa (Laravel gestante_whatsapp — não invente falas):'];
+        foreach ($historico as $item) {
+            $quem = match ($item['role']) {
+                'user' => 'Gestante',
+                'staff' => 'Equipe',
+                default => 'Assistente',
+            };
+            $linhas[] = '- '.$quem.': '.$item['text'];
         }
 
         return implode("\n", $linhas);
@@ -532,40 +889,56 @@ TXT;
 
     /**
      * @param  array<string, mixed>  $ctx
+     * @param  array<string, mixed>  $snapshot
      */
-    private function montarResumoPrenatal(array $ctx): string
+    private function montarResumoPrenatal(array $ctx, array $snapshot = []): string
     {
         $linhas = ['Dados do acompanhamento (só o que está cadastrado):'];
-        $nome = trim((string) ($ctx['primeiro_nome'] ?? ''));
+        $nome = trim((string) ($ctx['primeiro_nome'] ?? $snapshot['primeiro_nome'] ?? ''));
         if ($nome !== '') {
             $linhas[] = '- Primeiro nome: '.$nome;
         }
-        if (! empty($ctx['idade_gestacional'])) {
-            $linhas[] = '- Idade gestacional na última consulta: '.$ctx['idade_gestacional'].' semanas';
+        $ig = $ctx['idade_gestacional'] ?? $snapshot['idade_gestacional'] ?? null;
+        if (! empty($ig)) {
+            $linhas[] = '- Idade gestacional na última consulta: '.$ig.' semanas';
         }
-        if (! empty($ctx['data_ultima_consulta'])) {
-            $linhas[] = '- Data da última consulta: '.$ctx['data_ultima_consulta'];
+        $dataConsulta = $ctx['data_ultima_consulta'] ?? $snapshot['data_ultima_consulta'] ?? null;
+        if (! empty($dataConsulta)) {
+            $linhas[] = '- Data da última consulta: '.$dataConsulta;
         }
-        if (! empty($ctx['data_agendada'])) {
-            $linhas[] = '- Compromisso agendado: '.$ctx['data_agendada'];
+        $dataAgendada = $ctx['data_agendada'] ?? $snapshot['data_agendada'] ?? null;
+        if (! empty($dataAgendada)) {
+            $linhas[] = '- Compromisso agendado: '.$dataAgendada;
         }
-        if (isset($ctx['pressao_sistolica']) && $ctx['pressao_sistolica'] !== null && $ctx['pressao_sistolica'] !== '') {
-            $linhas[] = '- Pressão sistólica na última consulta: '.$ctx['pressao_sistolica'];
+        $pa = $ctx['pressao_sistolica'] ?? $snapshot['pressao_sistolica'] ?? null;
+        if ($pa !== null && $pa !== '') {
+            $linhas[] = '- Pressão sistólica na última consulta: '.$pa;
         }
-        if (isset($ctx['bpm_materno']) && $ctx['bpm_materno'] !== null && $ctx['bpm_materno'] !== '') {
-            $linhas[] = '- Frequência cardíaca materna na última consulta: '.$ctx['bpm_materno'];
+        $fc = $ctx['bpm_materno'] ?? $snapshot['bpm_materno'] ?? null;
+        if ($fc !== null && $fc !== '') {
+            $linhas[] = '- Frequência cardíaca materna na última consulta: '.$fc;
         }
-        if (isset($ctx['peso']) && $ctx['peso'] !== null && $ctx['peso'] !== '') {
-            $linhas[] = '- Peso na última consulta: '.$ctx['peso'];
+        $peso = $ctx['peso'] ?? $snapshot['peso'] ?? null;
+        if ($peso !== null && $peso !== '') {
+            $linhas[] = '- Peso na última consulta: '.$peso;
         }
-        if (isset($ctx['saturacao']) && $ctx['saturacao'] !== null && $ctx['saturacao'] !== '') {
-            $linhas[] = '- Saturação na última consulta: '.$ctx['saturacao'];
+        $sat = $ctx['saturacao'] ?? $snapshot['saturacao'] ?? null;
+        if ($sat !== null && $sat !== '') {
+            $linhas[] = '- Saturação na última consulta: '.$sat;
         }
         if (count($linhas) === 1) {
             return 'Não há resumo de consulta cadastrado além dos trechos abaixo.';
         }
 
-        $linhas[] = 'Não mencione classificação de risco de modelo de ML. Não invente campos ausentes.';
+        if (array_key_exists('hipertensao', $snapshot) && $snapshot['hipertensao'] !== null) {
+            $linhas[] = '- Hipertensão no cadastro: '.($snapshot['hipertensao'] ? 'sim' : 'não');
+        }
+        if (array_key_exists('diabetes_gestacional', $snapshot) && $snapshot['diabetes_gestacional'] !== null) {
+            $linhas[] = '- Diabetes gestacional no cadastro: '.($snapshot['diabetes_gestacional'] ? 'sim' : 'não');
+        }
+
+        $linhas[] = 'Não mencione classificação de risco de modelo de ML de forma alarmista. Não invente campos ausentes.';
+        $linhas[] = 'Se perguntarem se é hipertensa/diabética: responda só com o que está marcado no cadastro (sim/não) e oriente a equipe se precisar confirmar.';
 
         return implode("\n", $linhas);
     }

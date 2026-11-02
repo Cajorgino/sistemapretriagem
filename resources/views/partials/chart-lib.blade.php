@@ -159,5 +159,148 @@
             el._gestRiskChart = chart;
             return chart;
         },
+        cohortDoughnut(canvasId, labels, values, colors) {
+            this.defaults();
+            const el = document.getElementById(canvasId);
+            if (!el || typeof Chart === 'undefined') return null;
+            const total = values.reduce(function (soma, valor) { return soma + Number(valor); }, 0) || 1;
+            const pct = (100 * Number(values[0] || 0) / total).toLocaleString('pt-BR', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+            }) + '%';
+            return new Chart(el, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff',
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 12 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    const n = Number(ctx.raw);
+                                    const parte = (100 * n / total).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+                                    return ' ' + n.toLocaleString('pt-BR') + ' (' + parte + '%)';
+                                },
+                            },
+                        },
+                    },
+                },
+                plugins: [{
+                    id: 'centroPrevalencia',
+                    afterDraw: function (chart) {
+                        const area = chart.chartArea;
+                        const ctx = chart.ctx;
+                        ctx.save();
+                        ctx.font = "600 22px 'DM Serif Display', Georgia, serif";
+                        ctx.fillStyle = '#7f0c1a';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(pct, (area.left + area.right) / 2, (area.top + area.bottom) / 2 - 6);
+                        ctx.restore();
+                    },
+                }],
+            });
+        },
+        cohortBar(canvasId, labels, values, unidade, particao) {
+            this.defaults();
+            const el = document.getElementById(canvasId);
+            if (!el || typeof Chart === 'undefined') return null;
+            const horizontal = labels.length > 4 || labels.some(function (rotulo) {
+                return String(rotulo).length > 12;
+            });
+            const wrap = el.parentElement;
+            if (wrap) {
+                const altura = horizontal
+                    ? Math.max(360, labels.length * 48 + 80)
+                    : 380;
+                wrap.style.height = altura + 'px';
+                wrap.style.minHeight = altura + 'px';
+            }
+            const total = values.reduce(function (soma, valor) { return soma + Number(valor); }, 0) || 1;
+            const maior = Math.max.apply(null, values.map(Number).concat([1]));
+            const casos = canvasId.indexOf('casos_ccf') !== -1;
+            const cor = casos ? 'rgba(183, 28, 28, 0.82)' : 'rgba(127, 12, 26, 0.78)';
+            const eixoValor = {
+                beginAtZero: true,
+                suggestedMax: Math.ceil(maior * 1.18),
+                grid: { color: this.palette.grid },
+                ticks: { precision: 0, maxTicksLimit: 6 },
+                title: { display: true, text: unidade === 'cardiopatias' ? 'Cardiopatias' : 'Registros' },
+            };
+            const eixoRotulo = {
+                grid: { display: false },
+                ticks: { autoSkip: false, font: { size: 14 } },
+            };
+
+            return new Chart(el, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: cor,
+                        borderRadius: 4,
+                        barThickness: horizontal ? 22 : 42,
+                    }],
+                },
+                options: {
+                    indexAxis: horizontal ? 'y' : 'x',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    clip: false,
+                    layout: { padding: horizontal ? { right: 56, top: 4 } : { top: 22 } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    const n = Number(ctx.raw);
+                                    const texto = n.toLocaleString('pt-BR') + ' ' + (unidade || 'registros');
+                                    if (!particao) return ' ' + texto;
+                                    const parte = (100 * n / total).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+                                    return ' ' + texto + ' (' + parte + '%)';
+                                },
+                            },
+                        },
+                    },
+                    scales: horizontal
+                        ? { x: eixoValor, y: eixoRotulo }
+                        : { x: eixoRotulo, y: eixoValor },
+                },
+                plugins: [{
+                    id: 'rotuloValor',
+                    afterDatasetsDraw: function (chart) {
+                        const ctx = chart.ctx;
+                        ctx.save();
+                        ctx.font = "600 11px 'DM Sans', system-ui, sans-serif";
+                        ctx.fillStyle = '#5c4a4a';
+                        chart.getDatasetMeta(0).data.forEach(function (barra, indice) {
+                            const texto = Number(chart.data.datasets[0].data[indice]).toLocaleString('pt-BR');
+                            if (horizontal) {
+                                ctx.textAlign = 'left';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(texto, barra.x + 6, barra.y);
+                            } else {
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(texto, barra.x, barra.y - 4);
+                            }
+                        });
+                        ctx.restore();
+                    },
+                }],
+            });
+        },
     };
 </script>

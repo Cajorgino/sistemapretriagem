@@ -36,10 +36,24 @@
                 Interpretação em andamento. Atualize a página em instantes.
             </p>
         @else
+            @if (is_string($interpretacao->resumo_medico) && trim($interpretacao->resumo_medico) !== '')
+                <p class="consulta-valor" style="font-weight: 400; line-height: 1.6; margin: 0 0 16px; font-size: 15px;">{{ $interpretacao->resumo_medico }}</p>
+            @endif
             @php
                 $fatores = is_array($interpretacao->fatores_explicados) ? $interpretacao->fatores_explicados : [];
+                $fatores = \App\Services\DashboardAnaliseService::semFatoresAusentes(
+                    $fatores,
+                    \App\Services\DashboardAnaliseService::fatoresNaoRegistrados($interpretacao->consulta)
+                );
                 $recs = is_array($interpretacao->recomendacoes) ? $interpretacao->recomendacoes : [];
                 $deltas = is_array($interpretacao->deltas) ? $interpretacao->deltas : [];
+                $deltas = array_values(array_filter($deltas, function ($delta) {
+                    $texto = mb_strtolower(is_string($delta) ? $delta : '');
+
+                    return $texto !== ''
+                        && ! str_contains($texto, 'sem base longitudinal')
+                        && ! str_contains($texto, 'consulta anterior');
+                }));
             @endphp
 
             @if (count($deltas) > 0)
@@ -53,16 +67,9 @@
                 </div>
             @endif
 
-            @if ($interpretacao->resumo_medico)
-                <div class="form-section" style="padding: 18px; margin-bottom: 16px;">
-                    <span class="form-label">Resumo para a equipe</span>
-                    <p class="consulta-valor" style="font-weight: 400; line-height: 1.55; white-space: pre-wrap;">{{ $interpretacao->resumo_medico }}</p>
-                </div>
-            @endif
-
             @if ($interpretacao->resumo_gestante)
                 <div class="clinical-msg-gestante form-section">
-                    <span class="form-label">Mensagem para a gestante</span>
+                    <span class="form-label">Para orientar a gestante</span>
                     <p class="consulta-valor" style="font-weight: 400; line-height: 1.6; white-space: pre-wrap; font-size: 15px;">{{ $interpretacao->resumo_gestante }}</p>
                 </div>
             @endif
@@ -75,15 +82,11 @@
                             @php
                                 $nome = is_array($fator) ? ($fator['feature'] ?? $fator['nome'] ?? 'Não informado') : 'Não informado';
                                 $expl = is_array($fator) ? ($fator['explicacao'] ?? '') : '';
-                                $imp = is_array($fator) ? ($fator['impacto'] ?? null) : null;
                             @endphp
                             <li style="font-size: 14px; line-height: 1.45; color: var(--text);">
-                                <strong>{{ $nome }}</strong>
-                                @if ($imp !== null && $imp !== '')
-                                    <span style="color: var(--muted);">(impacto {{ is_numeric($imp) ? number_format((float) $imp, 3) : $imp }})</span>
-                                @endif
+                                <strong>{{ $nome }}.</strong>
                                 @if ($expl)
-                                    : {{ $expl }}
+                                    {{ $expl }}
                                 @endif
                             </li>
                         @endforeach

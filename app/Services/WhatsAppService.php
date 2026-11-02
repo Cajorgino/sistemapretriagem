@@ -434,7 +434,7 @@ class WhatsAppService
     }
 
     /**
-     * Menu inicial: lista para selecionar. Se o WAHA recusar, envia o menu numerado.
+     * Abertura do copiloto: só a saudação, sem menu de opções.
      */
     public function sendGestanteMenuInicial(Gestante $gestante): bool
     {
@@ -450,32 +450,6 @@ class WhatsAppService
             $this->lastError = 'Esta gestante não possui telefone cadastrado.';
 
             return false;
-        }
-
-        $primeiro = explode(' ', $nome)[0] ?: $nome;
-        $config = config('services.waha', []);
-
-        if ($this->wahaSupportsList($config)) {
-            $lista = $this->templates->menuLista($primeiro);
-            if ($this->sendListMessage($telefone, $lista)) {
-                $this->persistOutgoingMessage(
-                    $gestante->id,
-                    $this->templates->menuListaHistorico($primeiro),
-                    GestanteWhatsapp::CATEGORIA_CONVERSA,
-                );
-                $this->marcarMenuInicial($gestante);
-
-                return true;
-            }
-
-            Log::info('WhatsApp (WAHA): lista de seleção indisponível, enviando menu numerado.', [
-                'gestante_id' => $gestante->id,
-                'detalhe' => $this->lastError,
-            ]);
-        } else {
-            Log::info('WhatsApp (WAHA): engine sem lista interativa, enviando menu numerado.', [
-                'gestante_id' => $gestante->id,
-            ]);
         }
 
         $body = $this->templates->buildForGestante(WhatsAppMessageTemplates::MENU_INICIAL, $gestante);

@@ -157,7 +157,7 @@ test('exibe ficha local e roda predicao via POST /predict', function () {
         ->get(route('cohort.gestantes.show', 'GEST-100'))
         ->assertOk()
         ->assertSee('GEST-100')
-        ->assertSee('Predição de risco')
+        ->assertSee('Escore do modelo')
         ->assertDontSee('Falha na requisição à API Python');
 
     $this->actingAs($medico)

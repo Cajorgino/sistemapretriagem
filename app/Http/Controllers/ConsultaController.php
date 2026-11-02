@@ -95,6 +95,7 @@ class ConsultaController extends Controller
     {
         $validatedData = $request->validate($this->regrasFormularioConsulta());
         $validatedData = $this->aplicarDefaultsBooleanos($validatedData);
+        $validatedData = $this->completarColunasLegadas($validatedData);
         $validatedData['gestante_id'] = $id;
         $validatedData['consulta_numero'] = (int) Consulta::where('gestante_id', $id)->max('consulta_numero') + 1;
 
@@ -515,10 +516,12 @@ class ConsultaController extends Controller
         return [
             'data_consulta' => 'required|date',
             'idade_materna' => 'nullable|integer',
-            'idade_gestacional' => 'required|integer',
+            'idade_crianca_meses' => 'nullable|integer|min:0|max:240',
+            'idade_gestacional' => 'nullable|integer',
             'etnia' => 'nullable|string|max:50',
             'imc_pre_gestacional' => 'nullable|numeric',
-            'paridade' => 'nullable|integer',
+            'imc_gestacional_categoria' => 'nullable|integer|in:0,1,2',
+            'paridade' => 'nullable|integer|min:0|max:3',
             'abortamentos_previos' => 'nullable|integer',
             'historico_natimorto' => 'nullable|boolean',
             'historico_filho_anterior_chd' => 'nullable|boolean',
@@ -526,9 +529,14 @@ class ConsultaController extends Controller
             'diabetes_pre_gestacional' => 'nullable|boolean',
             'diabetes_gestacional' => 'nullable|boolean',
             'lupus_eritomatoso_sistemico' => 'nullable|boolean',
+            'sindrome_sjogren' => 'nullable|boolean',
             'fenilcetonuria' => 'nullable|boolean',
             'doencas_tireoidianas' => 'nullable|boolean',
             'hipertensao_cronica' => 'nullable|boolean',
+            'eclampsia' => 'nullable|boolean',
+            'prematuridade' => 'nullable|boolean',
+            'licitas_teratogenicas' => 'nullable|boolean',
+            'infeccao_materna_bacteriana' => 'nullable|boolean',
             'rubeola' => 'nullable|boolean',
             'citomegalovirus' => 'nullable|boolean',
             'toxoplasmose' => 'nullable|boolean',
@@ -583,36 +591,41 @@ class ConsultaController extends Controller
     private function aplicarDefaultsBooleanos(array $data): array
     {
         foreach ([
-            'historico_natimorto',
-            'historico_filho_anterior_chd',
+            'prematuridade',
             'historico_familiar_chd',
             'diabetes_pre_gestacional',
             'diabetes_gestacional',
             'lupus_eritomatoso_sistemico',
-            'fenilcetonuria',
+            'sindrome_sjogren',
             'doencas_tireoidianas',
             'hipertensao_cronica',
-            'rubeola',
-            'citomegalovirus',
-            'toxoplasmose',
-            'sifilis',
-            'uso_isotretinoina',
-            'uso_acido_valproico',
-            'uso_litio',
+            'hipertensao_pre_eclampsia',
+            'eclampsia',
+            'drogas_ilicitas',
+            'licitas_teratogenicas',
+            'infeccao_materna_bacteriana',
+            'chd_confirmada',
+        ] as $campo) {
+            $data[$campo] = (bool) ($data[$campo] ?? false);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Colunas antigas continuam obrigatórias no banco e não entram no formulário do modelo.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function completarColunasLegadas(array $data): array
+    {
+        foreach ([
+            'hipertensao',
+            'obesidade_pre_gestacional',
             'uso_medicamentos',
             'tabagismo',
             'alcoolismo',
-            'drogas_ilicitas',
-            'exposicao_ocupacional',
-            'usg_precoce_confirmada',
-            'obesidade_pre_gestacional',
-            'hipertensao',
-            'hipertensao_pre_eclampsia',
-            'translucencia_nucal_aumentada',
-            'regurgitacao_tricuspide_fetal',
-            'malformacoes_extracardiacas_associadas',
-            'crescimento_fetal_rcf_iugr',
-            'chd_confirmada',
         ] as $campo) {
             $data[$campo] = (bool) ($data[$campo] ?? false);
         }

@@ -24,7 +24,9 @@ interface RagContextBuilder
      *   fluxo_estado: string|null,
      *   intencao: string,
      *   resumo_prenatal: string,
-     *   nome: string|null
+     *   nome: string|null,
+     *   patient_snapshot: array<string, mixed>,
+     *   historico_conversa: list<array{role: string, text: string, at: string|null}>
      * }
      */
     public function buildForGestante(

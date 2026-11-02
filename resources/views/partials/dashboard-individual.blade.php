@@ -26,7 +26,7 @@
                         <div class="dash-zone-head">
                             <div>
                                 <h2>Fila de ecocardiograma</h2>
-                                <p>Gestantes com ecocardiograma recomendado, por prioridade.</p>
+                                <p>O modelo da planilha não coloca ninguém nesta fila. O encaminhamento continua manual.</p>
                             </div>
                             @can(\App\Models\User::ABILITY_ACOMPANHAMENTOS)
                             <a class="dash-count" href="{{ route('acompanhamentos.index') }}">
@@ -43,7 +43,7 @@
                             <div class="dash-panel-body dash-panel-body--flush">
                                 <div class="table-container table-container--flush" style="border: 0; border-radius: 0; box-shadow: none;">
                                     @if (! $temFila)
-                                        <p class="dash-empty">Nenhuma gestante com ecocardiograma recomendado.</p>
+                                        <p class="dash-empty">Nenhuma gestante entrou por escore do modelo.</p>
                                     @else
                                         <table class="data-table data-table--compact">
                                             <thead>
@@ -52,7 +52,7 @@
                                                     <th>Gestante</th>
                                                     <th class="td-num">Score</th>
                                                     <th>Prioridade</th>
-                                                    <th class="td-num">Cardiopatia congênita</th>
+                                                    <th class="td-num">Escore do modelo</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -112,8 +112,7 @@
                                                 <tr>
                                                     <th>Quando</th>
                                                     <th>Gestante</th>
-                                                    <th>Risco</th>
-                                                    <th class="td-num">Cardiopatia congênita</th>
+                                                    <th>Escore do modelo</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -125,7 +124,7 @@
                                                     <tr class="dash-pick"
                                                         data-id="{{ $gestanteItem?->id }}"
                                                         data-nome="{{ $gestanteItem?->nome_exibicao }}"
-                                                        data-risco="{{ DashboardAnaliseService::labelRisco($a->classificacao_risco) }}"
+                                                        data-risco="{{ $ccfTxt }}"
                                                         data-ccf="{{ $ccfTxt }}"
                                                         data-ccf-num="{{ $a->probabilidade_ccf !== null ? round((float) $a->probabilidade_ccf * 100, 1) : '' }}"
                                                         data-eco="{{ $a->recomenda_ecocardiograma ? DashboardAnaliseService::labelPrioridadeEco($a->prioridade_ecocardiograma) : '' }}"
@@ -141,8 +140,7 @@
                                                                 {{ \Illuminate\Support\Str::limit($gestanteItem->nome_exibicao, 24) }}
                                                             @else Não informado @endif
                                                         </td>
-                                                        <td>{{ DashboardAnaliseService::labelRisco($a->classificacao_risco) }}</td>
-                                                        <td class="td-num">{{ $ccfTxt !== '' ? $ccfTxt : 'Não informado' }}</td>
+                                                        <td>{{ $ccfTxt !== '' ? $ccfTxt : 'Não informado' }}</td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
@@ -169,11 +167,11 @@
 
                             <div class="dash-individual-kpis">
                                 <div class="dash-kpi" style="margin: 0;">
-                                    <div class="dash-kpi-label">Risco</div>
+                                    <div class="dash-kpi-label">Escore do modelo</div>
                                     <div class="dash-kpi-value" id="dash-ind-risco" style="font-size: 1.25rem;">Não informado</div>
                                 </div>
                                 <div class="dash-kpi" style="margin: 0;">
-                                    <div class="dash-kpi-label">Prob. cardiopatia</div>
+                                    <div class="dash-kpi-label">Escore</div>
                                     <div class="dash-kpi-value dash-kpi-value--accent" id="dash-ind-ccf" style="font-size: 1.25rem;">Não informado</div>
                                 </div>
                                 <div class="dash-kpi" style="margin: 0;">
@@ -186,7 +184,7 @@
                                 </div>
                             </div>
 
-                            <p class="dash-kpi-label">Probabilidade de cardiopatia congênita</p>
+                            <p class="dash-kpi-label">Escore do modelo na ficha</p>
                             <div class="dash-ccf-track" aria-hidden="true">
                                 <div class="dash-ccf-fill" id="dash-ind-ccf-bar" style="width: 0%"></div>
                             </div>
@@ -222,7 +220,7 @@
                                     <tr>
                                         <th>Data</th>
                                         <th>Gestante</th>
-                                        <th class="td-num">IG</th>
+                                        <th>Etnia</th>
                                         <th>Cardiopatia congênita</th>
                                     </tr>
                                 </thead>
@@ -250,7 +248,7 @@
                                                     Não informado
                                                 @endif
                                             </td>
-                                            <td class="td-num">{{ $c->idade_gestacional ?? 'Não informado' }}</td>
+                                            <td>{{ $c->etnia ?: 'Não informado' }}</td>
                                             <td>
                                                 @if ($c->chd_confirmada)
                                                     <span class="consulta-pill consulta-pill--alert" style="margin:0;">Sim</span>

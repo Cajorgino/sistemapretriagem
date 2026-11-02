@@ -15,44 +15,78 @@
     $encaminhadaParaFilaEco = $encaminhadaParaFilaEco ?? false;
     $temGraficosIa = $temGraficosIa ?? false;
 
-    $idadeNaConsulta = function ($consulta) use ($gestante) {
-        if ($gestante->data_nascimento && $consulta->data_consulta) {
-            return (int) round(abs(
-                \Carbon\Carbon::parse($gestante->data_nascimento)
-                    ->diffInYears(\Carbon\Carbon::parse($consulta->data_consulta))
-            ));
+    $rotuloParidade = function ($consulta): string {
+        return match ((int) $consulta->paridade) {
+            0 => 'Primigesta',
+            1 => '1 filho',
+            2 => '2 filhos',
+            3 => 'Mais de 3 filhos',
+            default => 'Não informado',
+        };
+    };
+    $rotuloLiquido = function ($consulta): string {
+        return match (strtolower((string) $consulta->polidramnio_oligoidramnio)) {
+            'polidramnio' => 'Polidrâmnio',
+            'oligodramnio' => 'Oligodrâmnio',
+            default => 'Sem alteração',
+        };
+    };
+    $rotuloImc = function ($consulta): string {
+        if ($consulta->imc_gestacional_categoria === null) {
+            return 'Não informado';
         }
 
-        return $consulta->idade_materna !== null ? (int) $consulta->idade_materna : null;
+        return match ((int) $consulta->imc_gestacional_categoria) {
+            0 => 'Normal',
+            1 => 'Acima de 24,9',
+            2 => 'Abaixo de 18,5',
+            default => 'Não informado',
+        };
     };
+    $simNao = fn ($valor): string => $valor ? 'Sim' : 'Não';
+    $camposConsulta = $consultaAtual ? [
+        ['Data', $consultaAtual->data_consulta ? $consultaAtual->data_consulta->format('d/m/Y') : 'Não informado'],
+        ['Meses de vida', $consultaAtual->idade_crianca_meses !== null ? (string) (int) $consultaAtual->idade_crianca_meses : 'Não informado'],
+        ['Cardiopatia congênita confirmada', $simNao($consultaAtual->chd_confirmada)],
+        ['Etnia', $consultaAtual->etnia ?: 'Não informado'],
+        ['Paridade', $consultaAtual->paridade !== null ? $rotuloParidade($consultaAtual) : 'Não informado'],
+        ['IMC gestacional', $rotuloImc($consultaAtual)],
+        ['Abortamentos prévios', $consultaAtual->abortamentos_previos !== null ? (string) (int) $consultaAtual->abortamentos_previos : 'Não informado'],
+        ['Gestação', strtolower((string) $consultaAtual->tipo_gestacao) === 'gemelar' ? 'Gemelar' : 'Única'],
+        ['Líquido amniótico', $rotuloLiquido($consultaAtual)],
+        ['Prematuridade', $simNao($consultaAtual->prematuridade)],
+        ['Cardiopatia em primeiro grau', $simNao($consultaAtual->historico_familiar_chd)],
+        ['Diabetes gestacional', $simNao($consultaAtual->diabetes_gestacional)],
+        ['Diabetes pré-gestacional', $simNao($consultaAtual->diabetes_pre_gestacional)],
+        ['Lúpus', $simNao($consultaAtual->lupus_eritomatoso_sistemico)],
+        ['Síndrome de Sjögren', $simNao($consultaAtual->sindrome_sjogren)],
+        ['Doença da tireoide', $simNao($consultaAtual->doencas_tireoidianas)],
+        ['Hipertensão crônica', $simNao($consultaAtual->hipertensao_cronica)],
+        ['Pré-eclâmpsia', $simNao($consultaAtual->hipertensao_pre_eclampsia)],
+        ['Eclâmpsia', $simNao($consultaAtual->eclampsia)],
+        ['Drogas ilícitas', $simNao($consultaAtual->drogas_ilicitas)],
+        ['Lícitas teratogênicas', $simNao($consultaAtual->licitas_teratogenicas)],
+        ['Infecção bacteriana', $simNao($consultaAtual->infeccao_materna_bacteriana)],
+    ] : [];
 
     $positivosClinicos = [];
     if ($consultaAtual) {
         $mapa = [
-            'historico_natimorto' => 'Histórico de natimorto',
-            'historico_filho_anterior_chd' => 'Filho anterior com cardiopatia congênita',
-            'historico_familiar_chd' => 'Histórico familiar de cardiopatia congênita',
-            'diabetes_pre_gestacional' => 'Diabetes pré-gestacional',
+            'prematuridade' => 'Prematuridade',
+            'historico_familiar_chd' => 'Cardiopatia em 1º grau',
             'diabetes_gestacional' => 'Diabetes gestacional',
-            'hipertensao_cronica' => 'Hipertensão crônica',
-            'hipertensao' => 'Hipertensão (atual)',
-            'hipertensao_pre_eclampsia' => 'Pré-eclâmpsia',
-            'obesidade_pre_gestacional' => 'Obesidade pré-gestacional',
+            'diabetes_pre_gestacional' => 'Diabetes prévio',
             'lupus_eritomatoso_sistemico' => 'Lúpus',
-            'fenilcetonuria' => 'Fenilcetonúria',
-            'doencas_tireoidianas' => 'Doenças tireoidianas',
-            'rubeola' => 'Rubéola',
-            'citomegalovirus' => 'Citomegalovírus',
-            'toxoplasmose' => 'Toxoplasmose',
-            'sifilis' => 'Sífilis',
-            'uso_isotretinoina' => 'Isotretinoína',
-            'uso_acido_valproico' => 'Ácido valproico',
-            'uso_litio' => 'Lítio',
-            'uso_medicamentos' => 'Outros medicamentos',
-            'tabagismo' => 'Tabagismo',
-            'alcoolismo' => 'Álcool',
+            'sindrome_sjogren' => 'Síndrome de Sjögren',
+            'doencas_tireoidianas' => 'Doença da tireoide',
+            'hipotireoidismo' => 'Hipotireoidismo',
+            'hipertireoidismo' => 'Hipertireoidismo',
+            'hipertensao_cronica' => 'HAS',
+            'hipertensao_pre_eclampsia' => 'Pré-eclâmpsia',
+            'eclampsia' => 'Eclâmpsia',
             'drogas_ilicitas' => 'Drogas ilícitas',
-            'exposicao_ocupacional' => 'Exposição ocupacional',
+            'licitas_teratogenicas' => 'Lícitas teratogênicas',
+            'infeccao_materna_bacteriana' => 'Infecção bacteriana',
         ];
         foreach ($mapa as $campo => $label) {
             if ($consultaAtual->{$campo}) {
@@ -62,9 +96,6 @@
     }
 
     $observacoes = [];
-    if ($podeAnalises && $gestante->ultimaInterpretacao?->resumo_medico) {
-        $observacoes[] = $gestante->ultimaInterpretacao->resumo_medico;
-    }
     if ($podeAcompanhamentos) {
         foreach ($gestante->acompanhamentos ?? collect() as $acomp) {
             $nota = trim((string) $acomp->observacao);
@@ -79,11 +110,15 @@
     <a href="#ficha-dados">Dados clínicos</a>
     <a href="#ficha-consulta-atual">Consulta atual</a>
     <a href="#ficha-historico">Histórico</a>
-    <a href="#ficha-exames">Exames</a>
+    @if ($examesDocumentos->isNotEmpty())
+        <a href="#ficha-exames">Exames</a>
+    @endif
     @if ($podeAnalises)
         <a href="#ficha-analises">Análises</a>
     @endif
-    <a href="#ficha-observacoes">Observações</a>
+    @if ($observacoes !== [])
+        <a href="#ficha-observacoes">Observações</a>
+    @endif
     <a href="#ficha-acoes">Ações</a>
 </nav>
 
@@ -101,31 +136,13 @@
                 <p class="consulta-valor">#{{ $gestante->id }}</p>
             </div>
             <div class="form-field" style="margin-bottom: 0;">
-                <span class="form-label">Nascimento</span>
-                <p class="consulta-valor">{{ $gestante->data_nascimento ? \Carbon\Carbon::parse($gestante->data_nascimento)->format('d/m/Y') : 'Não informada' }}</p>
-            </div>
-            <div class="form-field" style="margin-bottom: 0;">
-                <span class="form-label">CPF</span>
-                <p class="consulta-valor">{{ $gestante->cpf ? $gestante->cpf_formatado : 'Não informado' }}</p>
-            </div>
-            <div class="form-field" style="margin-bottom: 0;">
-                <span class="form-label">Telefone</span>
-                <p class="consulta-valor">{{ $gestante->telefone ? $gestante->telefone_formatado : 'Não informado' }}</p>
-            </div>
-            <div class="form-field" style="margin-bottom: 0;">
-                <span class="form-label">E-mail</span>
-                <p class="consulta-valor">{{ $gestante->email ?: 'Não informado' }}</p>
+                <span class="form-label">Registro da planilha</span>
+                <p class="consulta-valor">{{ $consultaAtual?->registro_planilha ?: $gestante->gestante_id }}</p>
             </div>
             <div class="form-field" style="margin-bottom: 0;">
                 <span class="form-label">Consultas registradas</span>
                 <p class="consulta-valor">{{ $gestante->consultas->count() }}</p>
             </div>
-            @if ($consultaAtual)
-                <div class="form-field" style="margin-bottom: 0;">
-                    <span class="form-label">Idade gestacional (atual)</span>
-                    <p class="consulta-valor">{{ $consultaAtual->idade_gestacional ? $consultaAtual->idade_gestacional.' sem' : 'Não informado' }}</p>
-                </div>
-            @endif
         </div>
         @if ($positivosClinicos !== [])
             <div style="margin-top: 18px;">
@@ -136,14 +153,8 @@
         @if ($podeAnalises && $gestante->ultimaAnalise && $gestante->ultimaAnalise->status === 'concluida')
             @php $ua = $gestante->ultimaAnalise; @endphp
             <p style="margin: 16px 0 0; font-size: 14px; color: var(--muted);">
-                Último risco:
-                <strong style="color: var(--text);">{{ \App\Services\DashboardAnaliseService::labelRisco($ua->classificacao_risco) }}</strong>
-                @if ($ua->probabilidade_ccf !== null)
-                    · {{ number_format($ua->probabilidade_ccf * 100, 1) }}% de cardiopatia congênita
-                @endif
-                @if ($ua->recomenda_ecocardiograma)
-                    · Eco {{ \App\Services\DashboardAnaliseService::labelPrioridadeEco($ua->prioridade_ecocardiograma) }}
-                @endif
+                {{ \App\Services\DashboardAnaliseService::textoEscoreModelo($ua->probabilidade_ccf) }}.
+                Este número descreve a ficha no modelo da planilha. Não é a chance de cardiopatia e não define a fila do ecocardiograma.
             </p>
         @endif
     </div>
@@ -152,16 +163,12 @@
 <section class="gestante-area" id="ficha-consulta-atual">
     <p class="gestante-area-kicker">Consulta atual</p>
     @if ($consultaAtual)
-        @php $idade = $idadeNaConsulta($consultaAtual); @endphp
         <div class="main-card">
             <div class="consulta-resumo-head">
                 <div>
-                    <h2 class="card-title" style="font-size: 22px; margin: 0;">Consulta nº {{ $consultaAtual->consulta_numero }}</h2>
+                    <h2 class="card-title" style="font-size: 22px; margin: 0;">Registro {{ $consultaAtual->registro_planilha ?: $consultaAtual->consulta_numero }}</h2>
                     <p style="color: var(--muted); font-size: 14px; margin-top: 10px; line-height: 1.5;">
-                        {{ $consultaAtual->data_consulta ? $consultaAtual->data_consulta->format('d/m/Y') : 'Não informado' }}
-                        @if ($consultaAtual->idade_gestacional)
-                            · {{ $consultaAtual->idade_gestacional }} sem
-                        @endif
+                        Meses de vida: {{ $consultaAtual->idade_crianca_meses !== null ? (int) $consultaAtual->idade_crianca_meses : 'Não informado' }}
                     </p>
                 </div>
                 <span class="consulta-pill {{ $consultaAtual->chd_confirmada ? 'consulta-pill--alert' : 'consulta-pill--ok' }}">
@@ -169,56 +176,15 @@
                 </span>
             </div>
 
-            <div class="form-page-grid form-page-grid--2" style="margin-top: 16px;">
-                <div class="form-section">
-                    <h3 class="form-section-title">Dados da consulta</h3>
-                    <div class="form-field-grid form-field-grid--2">
+            <div class="form-section" style="margin-top: 16px;">
+                <h3 class="form-section-title">Dados da consulta</h3>
+                <div class="form-field-grid form-field-grid--2">
+                    @foreach ($camposConsulta as $campo)
                         <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Idade na consulta</span>
-                            <p class="consulta-valor">{{ $idade !== null ? $idade.' anos' : 'Não informado' }}</p>
+                            <span class="form-label">{{ $campo[0] }}</span>
+                            <p class="consulta-valor">{{ $campo[1] }}</p>
                         </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Idade gestacional</span>
-                            <p class="consulta-valor">{{ $consultaAtual->idade_gestacional ? $consultaAtual->idade_gestacional.' sem' : 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Tipo de gestação</span>
-                            <p class="consulta-valor">{{ $consultaAtual->tipo_gestacao ?: 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Etnia</span>
-                            <p class="consulta-valor">{{ $consultaAtual->etnia ?: 'Não informado' }}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-section">
-                    <h3 class="form-section-title">Sinais vitais</h3>
-                    <div class="form-field-grid form-field-grid--2">
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Pressão sistólica</span>
-                            <p class="consulta-valor">{{ $consultaAtual->pressao_sistolica ?? 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">BPM materno</span>
-                            <p class="consulta-valor">{{ $consultaAtual->bpm_materno ?? 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Saturação</span>
-                            <p class="consulta-valor">{{ $consultaAtual->saturacao !== null && $consultaAtual->saturacao !== '' ? $consultaAtual->saturacao.'%' : 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Temperatura</span>
-                            <p class="consulta-valor">{{ $consultaAtual->temperatura_corporal !== null && $consultaAtual->temperatura_corporal !== '' ? $consultaAtual->temperatura_corporal.' °C' : 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Altura</span>
-                            <p class="consulta-valor">{{ $consultaAtual->altura ? $consultaAtual->altura.' cm' : 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Peso</span>
-                            <p class="consulta-valor">{{ $consultaAtual->peso ? $consultaAtual->peso.' kg' : 'Não informado' }}</p>
-                        </div>
-                    </div>
+                    @endforeach
                 </div>
             </div>
         </div>
@@ -267,9 +233,8 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th class="td-nowrap">Nº</th>
-                            <th class="td-date">Data</th>
-                            <th class="td-nowrap">IG</th>
+                            <th class="td-nowrap">Registro</th>
+                            <th class="td-nowrap">Meses de vida</th>
                             <th>Cardiopatia congênita</th>
                             @if ($podeConsultas)
                                 <th class="td-actions">Ação</th>
@@ -279,9 +244,8 @@
                     <tbody>
                         @foreach ($historicoConsultas as $consulta)
                             <tr>
-                                <td class="td-nowrap">{{ $consulta->consulta_numero }}</td>
-                                <td class="td-date">{{ $consulta->data_consulta ? $consulta->data_consulta->format('d/m/Y') : 'Não informado' }}</td>
-                                <td class="td-nowrap">{{ $consulta->idade_gestacional ? $consulta->idade_gestacional.' sem' : 'Não informado' }}</td>
+                                <td class="td-nowrap">{{ $consulta->registro_planilha ?: $consulta->consulta_numero }}</td>
+                                <td class="td-nowrap">{{ $consulta->idade_crianca_meses !== null ? (int) $consulta->idade_crianca_meses : 'Não informado' }}</td>
                                 <td>{{ $consulta->chd_confirmada ? 'Confirmada' : 'Não confirmada' }}</td>
                                 @if ($podeConsultas)
                                     <td class="td-actions">
@@ -297,59 +261,11 @@
     </div>
 </section>
 
+@if ($examesDocumentos->isNotEmpty())
 <section class="gestante-area" id="ficha-exames">
     <p class="gestante-area-kicker">Exames</p>
     <div class="main-card">
-        <h2 class="card-title" style="font-size: 20px; margin: 0 0 16px;">Exames da consulta e documentos</h2>
-        @if ($consultaAtual)
-            <div class="form-page-grid form-page-grid--2" style="margin-bottom: 18px;">
-                <div class="form-section">
-                    <h3 class="form-section-title">Laboratório</h3>
-                    <div class="form-field-grid form-field-grid--2">
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Glicemia jejum</span>
-                            <p class="consulta-valor">{{ $consultaAtual->glicemia_jejum ?? 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Glicemia pós-prandial</span>
-                            <p class="consulta-valor">{{ $consultaAtual->glicemia_pos_prandial ?? 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">HbA1c</span>
-                            <p class="consulta-valor">{{ $consultaAtual->hba1c !== null && $consultaAtual->hba1c !== '' ? $consultaAtual->hba1c.'%' : 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">USG precoce</span>
-                            <p class="consulta-valor">{{ $consultaAtual->usg_precoce_confirmada ? 'Confirmada' : 'Não informado' }}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-section">
-                    <h3 class="form-section-title">Dados fetais</h3>
-                    <div class="form-field-grid form-field-grid--2">
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">FC fetal</span>
-                            <p class="consulta-valor">{{ $consultaAtual->frequencia_cardiaca_fetal ?? 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">TN (mm)</span>
-                            <p class="consulta-valor">{{ $consultaAtual->translucencia_nucal_mm ?? 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Circ. cefálica</span>
-                            <p class="consulta-valor">{{ $consultaAtual->circunferencia_cefalica_fetal_mm ?? 'Não informado' }}</p>
-                        </div>
-                        <div class="form-field" style="margin-bottom: 0;">
-                            <span class="form-label">Quatro câmaras</span>
-                            <p class="consulta-valor">{{ $consultaAtual->quatro_camaras ?: 'Não informado' }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @endif
-        @if ($examesDocumentos->isEmpty())
-            <p class="dash-empty" style="text-align:left; padding: 8px 0; margin: 0;">Nenhum exame documental cadastrado.</p>
-        @else
+        <h2 class="card-title" style="font-size: 20px; margin: 0 0 16px;">Documentos</h2>
             <div class="table-container table-container--flush">
                 <table class="data-table">
                     <thead>
@@ -368,9 +284,9 @@
                     </tbody>
                 </table>
             </div>
-        @endif
     </div>
 </section>
+@endif
 
 @if ($podeAnalises)
 <section class="gestante-area" id="ficha-analises">
@@ -399,21 +315,19 @@
 </section>
 @endif
 
+@if ($observacoes !== [])
 <section class="gestante-area" id="ficha-observacoes">
     <p class="gestante-area-kicker">Observações</p>
     <div class="main-card">
         <h2 class="card-title" style="font-size: 20px; margin: 0 0 16px;">Notas clínicas</h2>
-        @if ($observacoes === [])
-            <p class="dash-empty" style="text-align:left; padding: 8px 0; margin: 0;">Nenhuma observação clínica registrada.</p>
-        @else
-            <div style="display: grid; gap: 12px;">
-                @foreach ($observacoes as $nota)
-                    <p style="margin: 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap;">{{ $nota }}</p>
-                @endforeach
-            </div>
-        @endif
+        <div style="display: grid; gap: 12px;">
+            @foreach ($observacoes as $nota)
+                <p style="margin: 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap;">{{ $nota }}</p>
+            @endforeach
+        </div>
     </div>
 </section>
+@endif
 
 <section class="gestante-area" id="ficha-acoes">
     <p class="gestante-area-kicker">Ações da consulta</p>

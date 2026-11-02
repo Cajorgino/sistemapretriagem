@@ -5,12 +5,23 @@
 @section('content')
 @php
     use App\Models\User;
-    use App\Services\DashboardAnaliseService;
 
     $podeAnalises = auth()->user()?->can(User::ABILITY_ANALISES);
     $podeGerenciarGestantes = auth()->user()?->can(User::ABILITY_GESTANTES_MANAGE);
-    $colspan = 6 + ($podeAnalises ? 1 : 0) + 1;
+    $colspan = 5 + ($podeAnalises ? 1 : 0);
+    $filtroCardiopatia = $filtroCardiopatia ?? '';
 @endphp
+<style>
+    .gestantes-filtro {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 18px;
+    }
+    .gestantes-filtro .form-label { margin: 0; }
+    .gestantes-filtro .form-select { width: auto; min-width: 180px; padding: 10px 14px; }
+</style>
     <div class="page-header">
         <h1 class="page-title">Gestantes</h1>
         <p class="page-subtitle">Cadastro e acompanhamento no rastreio de cardiopatias congênitas em gestantes diabéticas.</p>
@@ -42,6 +53,18 @@
             @endcan
         </div>
 
+        <form method="GET" action="{{ route('gestantes.index') }}" class="gestantes-filtro">
+            <label class="form-label" for="filtro_cardiopatia">Cardiopatia confirmada</label>
+            <select class="form-select" name="cardiopatia" id="filtro_cardiopatia" onchange="this.form.submit()">
+                <option value="" @selected($filtroCardiopatia === '')>Todas</option>
+                <option value="sim" @selected($filtroCardiopatia === 'sim')>Sim</option>
+                <option value="nao" @selected($filtroCardiopatia === 'nao')>Não</option>
+            </select>
+            @if ($filtroCardiopatia !== '')
+                <span style="font-size: 13px; color: var(--muted);">{{ $gestantes->total() }} {{ $gestantes->total() === 1 ? 'registro' : 'registros' }}</span>
+            @endif
+        </form>
+
         <p class="table-scroll-hint">↔ Em telas menores, deslize para ver as colunas; no desktop aparecem todas.</p>
         <div class="table-container table-container--flush">
             <table class="data-table data-table--wide">
@@ -50,11 +73,9 @@
                         <th class="td-cell-nome">Nome</th>
                         <th class="td-num td-num--narrow">Nº cadastro</th>
                         @if ($podeAnalises)
-                            <th class="td-risco">Risco</th>
+                            <th class="td-risco">Escore do modelo</th>
                         @endif
-                        <th class="td-cpf">CPF</th>
-                        <th class="td-tel">Telefone</th>
-                        <th class="td-date">Nascimento</th>
+                        <th>Cardiopatia confirmada</th>
                         <th class="td-num td-num--narrow">Consultas</th>
                         <th class="td-actions">Ações</th>
                     </tr>
@@ -62,10 +83,10 @@
                 <tbody>
                     @forelse ($gestantes as $gestante)
                         @php
-                            $risco = null;
+                            $escore = null;
                             if ($podeAnalises) {
                                 $ua = $gestante->ultimaAnalise;
-                                $risco = ($ua && $ua->status === 'concluida') ? $ua->classificacao_risco : null;
+                                $escore = ($ua && $ua->status === 'concluida') ? $ua->probabilidade_ccf : null;
                             }
                         @endphp
                         <tr>
@@ -73,18 +94,14 @@
                             <td class="td-num td-num--narrow">#{{ $gestante->id }}</td>
                             @if ($podeAnalises)
                             <td class="td-risco">
-                                @if ($risco)
-                                    <span class="consulta-pill {{ DashboardAnaliseService::pillClassRisco($risco) }}" style="margin:0;">
-                                        {{ DashboardAnaliseService::labelRisco($risco) }}
-                                    </span>
+                                @if ($escore !== null)
+                                    <span style="font-size: 13px; font-weight: 600;">{{ number_format((float) $escore * 100, 1, ',', '.') }}%</span>
                                 @else
                                     <span style="color: var(--muted); font-size: 13px;">Não informado</span>
                                 @endif
                             </td>
                             @endif
-                            <td class="td-cpf">{{ $gestante->cpf ? $gestante->cpf_formatado : 'Não informado' }}</td>
-                            <td class="td-tel">{{ $gestante->telefone ? $gestante->telefone_formatado : 'Não informado' }}</td>
-                            <td class="td-date">{{ $gestante->data_nascimento ? \Carbon\Carbon::parse($gestante->data_nascimento)->format('d/m/Y') : 'Não informado' }}</td>
+                            <td>{{ $gestante->filho_cardiopatia_confirmada ? 'Sim' : 'Não' }}</td>
                             <td class="td-num td-num--narrow">{{ $gestante->consultas_count }}</td>
                             <td class="td-actions">
                                 <div class="td-actions-inner td-actions-inner--icons">
@@ -127,7 +144,15 @@
                         </tr>
                     @empty
                         <tr class="data-table-empty">
-                            <td colspan="{{ $colspan }}">Nenhuma gestante cadastrada.</td>
+                            <td colspan="{{ $colspan }}">
+                                @if ($filtroCardiopatia === 'sim')
+                                    Nenhuma gestante com cardiopatia confirmada.
+                                @elseif ($filtroCardiopatia === 'nao')
+                                    Nenhuma gestante sem cardiopatia confirmada.
+                                @else
+                                    Nenhuma gestante cadastrada.
+                                @endif
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>

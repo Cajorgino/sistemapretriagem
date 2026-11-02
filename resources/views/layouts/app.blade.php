@@ -92,10 +92,9 @@
         .header-inner {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
-            min-height: 56px;
+            padding: max(8px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left));
+            min-height: 64px;
             height: auto;
-            padding-top: max(0px, env(safe-area-inset-top));
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -109,8 +108,8 @@
             gap: 10px;
             text-decoration: none;
             min-width: 0;
-            flex: 0 1 auto;
-            max-width: min(280px, 36vw);
+            flex: 1 1 auto;
+            max-width: min(460px, 52vw);
         }
 
         .header-logo-mark {
@@ -186,9 +185,6 @@
             font-weight: 400;
             line-height: 1.15;
             max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
         }
 
         .header-logo-tagline {
@@ -202,9 +198,7 @@
             margin-top: 2px;
             line-height: 1.35;
             max-width: 100%;
-            overflow-wrap: anywhere;
-            word-break: break-word;
-            hyphens: auto;
+            white-space: nowrap;
         }
 
         .header-logo-tagline .tagline-short {
@@ -217,7 +211,7 @@
             align-items: flex-start;
             min-width: 0;
             flex: 1 1 auto;
-            overflow: hidden;
+            overflow: visible;
         }
 
         /* Nav desktop */
@@ -467,8 +461,8 @@
             flex-shrink: 0;
         }
 
-        /* Desktop largo: mais respiro e rótulos completos */
-        @media (min-width: 1400px) {
+        /* Desktop largo: legenda inteira em uma linha */
+        @media (min-width: 1600px) {
             .nav-desktop { gap: 4px; }
             .nav-desktop .nav-link {
                 padding: 8px 12px;
@@ -479,56 +473,57 @@
                 padding: 8px 14px;
                 font-size: 14px;
             }
-            .header-logo { max-width: none; }
+            .header-logo { flex: 0 0 auto; max-width: none; }
+            .header-logo-tagline { font-size: 10px; letter-spacing: 0.05em; }
         }
 
-        /* Notebook / desktop médio: esconde ícones e usa rótulos curtos */
-        @media (min-width: 1200px) and (max-width: 1399px) {
+        /* Notebook: menu compacto e legenda inteira sem quebrar */
+        @media (min-width: 1200px) and (max-width: 1599px) {
+            .nav-desktop { gap: 2px; }
             .nav-desktop .nav-link svg,
             .nav-desktop .btn-logout svg {
                 display: none;
             }
             .nav-desktop .nav-link {
-                padding: 8px 9px;
+                padding: 8px 8px;
                 font-size: 13px;
             }
-            .header-logo { max-width: 220px; }
+            .nav-desktop .nav-label-full { display: none; }
+            .nav-desktop .nav-label-short { display: inline; }
+            .header-logo { flex: 0 0 auto; max-width: none; }
             .header-logo-tagline {
-                letter-spacing: 0.04em;
+                font-size: 9px;
+                letter-spacing: 0.03em;
             }
-            .header-logo-tagline .tagline-full { display: none; }
-            .header-logo-tagline .tagline-short { display: inline; }
         }
 
         .nav-label-short { display: none; }
-
-        @media (min-width: 1200px) and (max-width: 1399px) {
-            .nav-desktop .nav-label-full { display: none; }
-            .nav-desktop .nav-label-short { display: inline; }
-        }
 
         /* Abaixo de 1200px: hamburger (evita nav espremida no desktop estreito) */
         @media (max-width: 1199px) {
             .nav-desktop { display: none; }
             .btn-mobile-menu { display: inline-flex; }
             .header-inner {
-                min-height: 58px;
-                padding-top: max(4px, env(safe-area-inset-top));
-                padding-bottom: 4px;
+                min-height: 64px;
+                padding-top: max(8px, env(safe-area-inset-top));
+                padding-bottom: 8px;
             }
             .header-logo { max-width: none; flex: 1 1 auto; }
             .header-logo-tagline {
-                letter-spacing: 0.04em;
+                font-size: clamp(8px, 2.1vw, 10px);
+                letter-spacing: 0.03em;
+                white-space: normal;
             }
-            .header-logo-tagline .tagline-full { display: none; }
-            .header-logo-tagline .tagline-short { display: inline; }
         }
 
         @media (max-width: 768px) {
             main { padding: 20px max(14px, env(safe-area-inset-right)) 24px max(14px, env(safe-area-inset-left)); }
+            .header-logo-tagline .tagline-full { display: none; }
+            .header-logo-tagline .tagline-short { display: inline; }
             .header-logo-tagline {
-                font-size: 8px;
-                letter-spacing: 0.03em;
+                font-size: 9px;
+                letter-spacing: 0.04em;
+                white-space: nowrap;
             }
         }
 
@@ -537,7 +532,7 @@
             .header-logo-mark { width: 36px; height: 36px; }
             .header-logo { gap: 8px; }
             .header-logo-tagline {
-                font-size: 7.5px;
+                font-size: 8px;
                 letter-spacing: 0.02em;
             }
         }

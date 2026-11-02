@@ -33,7 +33,7 @@ class GeminiChatService implements LlmProvider
             return $this->fallback();
         }
 
-        $model = (string) config('services.gemini.model', 'gemini-2.0-flash');
+        $model = (string) config('services.gemini.model', 'gemini-3.5-flash-lite');
         $base = rtrim((string) config('services.gemini.base_url', 'https://generativelanguage.googleapis.com/v1beta'), '/');
         $timeout = (int) config('services.gemini.timeout', 25);
         $url = $base.'/models/'.$model.':generateContent';

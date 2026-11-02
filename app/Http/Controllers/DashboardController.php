@@ -70,21 +70,14 @@ class DashboardController extends Controller
         $analisesRecentes = $this->dashboardAnalise->analisesRecentes(10);
         $graficosPopulacionais = $this->dashboardAnalise->dadosGraficosPopulacionais();
 
-        $analiseDescritiva = $this->ccfApi->obterAnaliseDescritiva();
-        $graficosDescritivos = $this->ordenarGraficosDescritivos(
-            array_values(array_filter(
-                $this->ccfApi->listarGraficosDescritivos(),
-                static fn (array $g): bool => (bool) ($g['disponivel'] ?? false)
-            ))
-        );
-        $graficosCohort = [];
-        if ($graficosDescritivos === []) {
-            $local = $this->dashboardAnalise->resumoCohortLocal();
-            if ($analiseDescritiva === []) {
-                $analiseDescritiva = $local;
-            }
-            $graficosCohort = $this->dashboardAnalise->dadosGraficosCohort();
-        }
+        $analiseDescritiva = $this->dashboardAnalise->resumoCohortLocal();
+        $graficosDescritivos = [];
+        $graficosCohort = $this->dashboardAnalise->dadosGraficosCohort();
+
+        $mediaIdadeCriancaMeses = Consulta::query()->whereNotNull('idade_crianca_meses')->avg('idade_crianca_meses');
+        $mediaIdadeCriancaMeses = $mediaIdadeCriancaMeses !== null
+            ? round((float) $mediaIdadeCriancaMeses, 1)
+            : null;
 
         $datasetMlTotal = null;
         try {
@@ -123,6 +116,7 @@ class DashboardController extends Controller
             'taxaGestantesComConsulta' => $taxaGestantesComConsulta,
             'pctChdNasConsultas' => $pctChdNasConsultas,
             'mediaIdadeGestacional' => $mediaIdadeGestacional,
+            'mediaIdadeCriancaMeses' => $mediaIdadeCriancaMeses,
             'consultasComDiabetes' => $consultasComDiabetes,
             'consultasComHipertensao' => $consultasComHipertensao,
             'consultasRecentes' => $consultasRecentes,
@@ -132,6 +126,7 @@ class DashboardController extends Controller
             'analisesRecentes' => $analisesRecentes,
             'graficosPopulacionais' => $graficosPopulacionais,
             'analiseDescritiva' => $analiseDescritiva,
+            'leituraDescritiva' => $this->dashboardAnalise->leituraDescritiva(),
             'graficosDescritivos' => $graficosDescritivos,
             'graficosCohort' => $graficosCohort,
             'datasetMlTotal' => $datasetMlTotal,

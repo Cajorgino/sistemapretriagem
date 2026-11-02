@@ -6,6 +6,7 @@ use App\Models\AnaliseHistorico;
 use App\Models\Consulta;
 use App\Models\Gestante;
 use App\Models\InterpretacaoClinica;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -139,7 +140,7 @@ class ClinicalContextBuilder
 
                 'id_publico' => $gestante->gestante_id ?: ('G-'.$gestante->id),
 
-                'idade_materna' => $consulta->idade_materna,
+                'idade_materna' => $this->idadeMaterna($gestante, $consulta),
 
             ],
 
@@ -427,7 +428,56 @@ class ClinicalContextBuilder
 
             'corionicidade' => $c->corionicidade,
 
+            'idade_crianca_meses' => $c->idade_crianca_meses,
+
+            'imc_gestacional_categoria' => $c->imc_gestacional_categoria,
+
+            'prematuridade' => (bool) $c->prematuridade,
+
+            'sindrome_sjogren' => (bool) $c->sindrome_sjogren,
+
+            'hipotireoidismo' => (bool) $c->hipotireoidismo,
+
+            'hipertireoidismo' => (bool) $c->hipertireoidismo,
+
+            'doencas_tireoidianas' => (bool) $c->doencas_tireoidianas,
+
+            'hipertensao_pre_eclampsia' => (bool) $c->hipertensao_pre_eclampsia,
+
+            'eclampsia' => (bool) $c->eclampsia,
+
+            'drogas_ilicitas' => (bool) $c->drogas_ilicitas,
+
+            'licitas_teratogenicas' => (bool) $c->licitas_teratogenicas,
+
+            'infeccao_materna_bacteriana' => (bool) $c->infeccao_materna_bacteriana,
+
+            'fenilcetonuria' => (bool) $c->fenilcetonuria,
+
+            'rubeola' => (bool) $c->rubeola,
+
+            'polidramnio_oligoidramnio' => $c->polidramnio_oligoidramnio,
+
+            'chd_confirmada' => (bool) $c->chd_confirmada,
+
         ];
 
+    }
+
+    private function idadeMaterna(Gestante $gestante, Consulta $consulta): ?int
+    {
+        if ($consulta->idade_materna !== null && (int) $consulta->idade_materna > 0) {
+            return (int) $consulta->idade_materna;
+        }
+
+        if (! $gestante->data_nascimento || ! $consulta->data_consulta) {
+            return null;
+        }
+
+        $anos = (int) round(abs(
+            Carbon::parse($gestante->data_nascimento)->diffInYears($consulta->data_consulta)
+        ));
+
+        return $anos > 0 ? $anos : null;
     }
 }

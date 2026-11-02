@@ -23,10 +23,24 @@
         return number_format((float) $v, $dec, ',', '.');
     };
 
-    $idade = $clinicos['idade_materna'] ?? $features['idade'] ?? null;
-    $imc = $clinicos['imc_pre_gestacional'] ?? $features['imc'] ?? null;
-    $ig = $clinicos['idade_gestacional'] ?? $features['idade_gestacional'] ?? null;
-    $etnia = $clinicos['etnia'] ?? null;
+    $feat = is_array($gestante['features_modelo'] ?? null) ? $gestante['features_modelo'] : [];
+    $etnia = $feat['etnia'] ?? ($clinicos['etnia'] ?? null);
+    $paridade = $feat['paridade'] ?? null;
+    $imcCat = $feat['imc_gestacional_categoria'] ?? null;
+    $abortos = $feat['abortamentos_previos'] ?? null;
+    $faixaImc = match ((string) $imcCat) {
+        '0' => 'Normal',
+        '1' => 'Acima de 24,9',
+        '2' => 'Abaixo de 18,5',
+        default => 'Não informado',
+    };
+    $rotuloParidade = match ((string) $paridade) {
+        '0' => 'Primigesta',
+        '1' => '1 filho',
+        '2' => '2 filhos',
+        '3' => 'Mais de 3 filhos',
+        default => 'Não informado',
+    };
 
     $risco = is_array($predicao) ? ($predicao['classificacao_risco'] ?? null) : null;
     $riscoClass = DashboardAnaliseService::pillClassRisco($risco);
@@ -42,7 +56,7 @@
                     </p>
                     <h1 class="page-title" style="margin: 0;">{{ $nomeExibicao ?? $idGestante }}</h1>
                     <p class="page-subtitle" style="margin: 8px 0 0;">
-                        {{ $idGestante }}. Predição individual de risco de cardiopatia congênita.
+                        {{ $idGestante }}. Escore do modelo treinado na planilha.
                     </p>
                 </div>
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
@@ -72,60 +86,51 @@
         @if ($gestante)
             <div class="dash-kpis" style="margin-bottom: 0;">
                 <div class="dash-kpi">
-                    <div class="dash-kpi-label">Idade</div>
-                    <div class="dash-kpi-value">{{ $fmtNum($idade) }}</div>
-                </div>
-                <div class="dash-kpi">
-                    <div class="dash-kpi-label">IMC</div>
-                    <div class="dash-kpi-value">{{ $fmtNum($imc) }}</div>
-                </div>
-                <div class="dash-kpi">
-                    <div class="dash-kpi-label">IG (sem.)</div>
-                    <div class="dash-kpi-value">{{ $fmtNum($ig) }}</div>
-                </div>
-                <div class="dash-kpi">
                     <div class="dash-kpi-label">Etnia</div>
                     <div class="dash-kpi-value" style="font-size: 1.2rem;">{{ $etnia ?: 'Não informado' }}</div>
+                </div>
+                <div class="dash-kpi">
+                    <div class="dash-kpi-label">Paridade</div>
+                    <div class="dash-kpi-value" style="font-size: 1.2rem;">{{ $rotuloParidade }}</div>
+                </div>
+                <div class="dash-kpi">
+                    <div class="dash-kpi-label">IMC gestacional</div>
+                    <div class="dash-kpi-value" style="font-size: 1.15rem;">{{ $imcCat === null || $imcCat === '' ? 'Não informado' : $faixaImc }}</div>
+                </div>
+                <div class="dash-kpi">
+                    <div class="dash-kpi-label">Abortamentos</div>
+                    <div class="dash-kpi-value">{{ $abortos === null || $abortos === '' ? 'Não informado' : $abortos }}</div>
                 </div>
             </div>
 
             <div class="main-card" style="margin-bottom: 0;">
                 <div class="card-toolbar">
                     <div>
-                        <h2 class="card-title" style="margin: 0; font-size: 18px;">Predição de risco</h2>
+                        <h2 class="card-title" style="margin: 0; font-size: 18px;">Escore do modelo</h2>
                         <p style="margin: 6px 0 0; font-size: 13px; color: var(--muted);">
-                            Classificação assistida. Não altera o cadastro clínico
+                            Descreve esta ficha no modelo da planilha. Não é a chance de cardiopatia e não define a fila do ecocardiograma.
                         </p>
                     </div>
                     <form method="POST" action="{{ route('cohort.gestantes.predict', $idGestante) }}">
                         @csrf
                         <button type="submit" class="btn-primary-custom">
-                            {{ $predicao ? 'Calcular novamente' : 'Calcular risco' }}
+                            {{ $predicao ? 'Calcular novamente' : 'Calcular escore' }}
                         </button>
                     </form>
                 </div>
 
                 @if ($predicao)
                     <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 4px;">
-                        @if ($risco)
-                            <span class="consulta-pill {{ $riscoClass }}">{{ DashboardAnaliseService::labelRisco($risco) }}</span>
-                        @endif
                         @if (isset($predicao['probabilidade_risco']))
                             <span style="font-size: 14px; color: var(--muted);">
-                                {{ number_format((float) $predicao['probabilidade_risco'] * 100, 1, ',', '.') }}% de cardiopatia congênita
+                                {{ \App\Services\DashboardAnaliseService::textoEscoreModelo($predicao['probabilidade_risco']) }}
                             </span>
                         @endif
                     </div>
 
                     <div class="dash-kpis" style="margin-top: 12px; margin-bottom: 0;">
                         <div class="dash-kpi">
-                            <div class="dash-kpi-label">Classificação</div>
-                            <div class="dash-kpi-value {{ $risco === 'alto' ? 'dash-kpi-value--risk-high' : ($risco === 'moderado' ? 'dash-kpi-value--warn' : ($risco === 'baixo' ? 'dash-kpi-value--ok' : 'dash-kpi-value--accent')) }}" style="font-size: 1.35rem;">
-                                {{ $risco ? DashboardAnaliseService::labelRisco($risco) : 'Não informado' }}
-                            </div>
-                        </div>
-                        <div class="dash-kpi">
-                            <div class="dash-kpi-label">Probabilidade</div>
+                            <div class="dash-kpi-label">Escore</div>
                             <div class="dash-kpi-value">
                                 {{ isset($predicao['probabilidade_risco']) ? number_format((float) $predicao['probabilidade_risco'] * 100, 1, ',', '.').'%' : 'Não informado' }}
                             </div>

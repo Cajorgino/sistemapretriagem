@@ -24,7 +24,14 @@
                     $numero = $analises->count() - $idx;
                     $risco = $analise->classificacao_risco;
                     $riscoClass = DashboardAnaliseService::pillClassRisco($risco);
-                    $shapTop = collect(DashboardAnaliseService::normalizeShapItems($analise->shap, 36));
+                    $consultaAnalise = isset($gestante)
+                        ? $gestante->consultas->firstWhere('id', $analise->consulta_id)
+                        : $analise->consulta;
+                    $ausentes = DashboardAnaliseService::fatoresNaoRegistrados($consultaAnalise);
+                    $shapTop = collect(DashboardAnaliseService::semFatoresAusentes(
+                        DashboardAnaliseService::normalizeShapItems($analise->shap, 36),
+                        $ausentes
+                    ));
                     $resumo = $analise->analise['resumo_clinico']['simplificado']
                         ?? $analise->analise['resumo_clinico']
                         ?? null;
@@ -45,7 +52,7 @@
                                 @if ($analise->status === 'erro')
                                     <span class="consulta-pill consulta-pill--alert">Erro</span>
                                 @else
-                                    <span class="consulta-pill {{ $riscoClass }}">{{ DashboardAnaliseService::labelRisco($risco) }}</span>
+                                    <span class="consulta-pill consulta-pill--info">{{ DashboardAnaliseService::textoEscoreModelo($analise->probabilidade_ccf) }}</span>
                                     @php
                                         $fonteAnalise = $analise->analise['fonte'] ?? $analise->predicao['fonte'] ?? null;
                                     @endphp
@@ -55,7 +62,7 @@
                                         <span class="consulta-pill consulta-pill--alert">Estimativa</span>
                                     @endif
                                     @if ($analise->probabilidade_ccf !== null)
-                                        <span class="analise-timeline-prob">{{ number_format($analise->probabilidade_ccf * 100, 1) }}% de cardiopatia congênita</span>
+                                        <span class="analise-timeline-prob">Descreve a ficha no modelo. Não é a chance de cardiopatia.</span>
                                     @endif
                                 @endif
                             </div>
@@ -98,7 +105,7 @@
                                                 <strong>{{ $item['nome'] }}</strong>
                                                 : {{ number_format($item['percentual_contribuicao'], 1) }}%
                                                 <span style="color: var(--muted);">
-                                                    ({{ ($item['direcao'] ?? '') === 'aumenta_risco' ? '↑ risco' : '↓ risco' }})
+                                                    ({{ ($item['direcao'] ?? '') === 'aumenta_risco' ? '↑ escore' : '↓ escore' }})
                                                 </span>
                                             </li>
                                         @endforeach
@@ -153,10 +160,17 @@
 </style>
 
 @php
+    $gestanteDaFicha = $gestante ?? null;
     $shapChartPayload = $analises
         ->filter(fn ($a) => $a->status === 'concluida')
-        ->mapWithKeys(function ($a) {
-            $items = DashboardAnaliseService::normalizeShapItems($a->shap, 36);
+        ->mapWithKeys(function ($a) use ($gestanteDaFicha) {
+            $consultaAnalise = $gestanteDaFicha
+                ? $gestanteDaFicha->consultas->firstWhere('id', $a->consulta_id)
+                : $a->consulta;
+            $items = DashboardAnaliseService::semFatoresAusentes(
+                DashboardAnaliseService::normalizeShapItems($a->shap, 36),
+                DashboardAnaliseService::fatoresNaoRegistrados($consultaAnalise)
+            );
 
             return $items === [] ? [] : [$a->id => $items];
         })

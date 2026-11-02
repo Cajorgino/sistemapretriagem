@@ -20,10 +20,23 @@ use Throwable;
 
 class GestanteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize(User::ABILITY_GESTANTES_VIEW);
-        $query = Gestante::withCount('consultas');
+        $filtroCardiopatia = $request->query('cardiopatia');
+        if (! in_array($filtroCardiopatia, ['sim', 'nao'], true)) {
+            $filtroCardiopatia = '';
+        }
+
+        $query = Gestante::withCount('consultas')
+            ->withExists([
+                'consultas as filho_cardiopatia_confirmada' => fn ($consulta) => $consulta->where('chd_confirmada', true),
+            ]);
+        if ($filtroCardiopatia === 'sim') {
+            $query->whereHas('consultas', fn ($consulta) => $consulta->where('chd_confirmada', true));
+        } elseif ($filtroCardiopatia === 'nao') {
+            $query->whereDoesntHave('consultas', fn ($consulta) => $consulta->where('chd_confirmada', true));
+        }
         if (auth()->user()?->can(User::ABILITY_ANALISES)) {
             $query->with('ultimaAnalise');
         }
@@ -31,10 +44,12 @@ class GestanteController extends Controller
         $gestantes = $query
             ->orderBy('nome')
             ->orderBy('id')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
         return view('gestantes.index', [
             'gestantes' => $gestantes,
+            'filtroCardiopatia' => $filtroCardiopatia,
         ]);
     }
 

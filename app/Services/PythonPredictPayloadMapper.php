@@ -6,8 +6,8 @@ use App\Models\Consulta;
 use App\Models\Gestante;
 
 /**
- * Converte entidades Laravel no payload clínico completo esperado por POST /predict
- * (36 features do Pipeline CardioPrenatal-ML).
+ * Converte a consulta no payload da planilha treinado.
+ * Não envia idade materna, idade gestacional nem IMC numérico.
  */
 class PythonPredictPayloadMapper
 {
@@ -17,98 +17,37 @@ class PythonPredictPayloadMapper
     public function fromConsulta(Consulta $consulta, ?Gestante $gestante = null): array
     {
         $gestante = $gestante ?? $consulta->gestante;
-
-        $idade = $consulta->idade_materna ?? $consulta->idade ?? null;
-        if ($idade === null && $gestante?->data_nascimento && $consulta->data_consulta) {
-            $idade = (int) round(abs($gestante->data_nascimento->diffInYears($consulta->data_consulta)));
-        }
-
-        $imc = $consulta->imc_pre_gestacional !== null
-            ? (float) $consulta->imc_pre_gestacional
-            : 24.0;
-
-        $diabetesPre = (int) ((bool) $consulta->diabetes_pre_gestacional);
-        $diabetesGest = (int) ((bool) $consulta->diabetes_gestacional);
-        $hipertensao = (int) ((bool) ($consulta->hipertensao || $consulta->hipertensao_cronica));
-        $exposicao = (int) ((bool) $consulta->exposicao_ocupacional);
         $gemelar = strtolower((string) ($consulta->tipo_gestacao ?? '')) === 'gemelar' ? 1 : 0;
         $liquido = strtolower((string) ($consulta->polidramnio_oligoidramnio ?? ''));
-        $ducto = $this->ductoAlterado($consulta->doppler_ducto_venoso ?? null);
-        $corionicidade = $this->corionicidade($consulta->corionicidade ?? null, $gemelar === 1);
-
-        $idadeMaterna = $idade !== null ? (float) $idade : 28.0;
-        $idadeGestacional = $consulta->idade_gestacional !== null
-            ? (float) $consulta->idade_gestacional
-            : 20.0;
-        $paridade = $consulta->paridade !== null ? (int) $consulta->paridade : 0;
-        $tabagismo = (int) ((bool) $consulta->tabagismo);
+        $tireoide = (bool) $consulta->doencas_tireoidianas
+            || (bool) $consulta->hipotireoidismo
+            || (bool) $consulta->hipertireoidismo;
 
         return [
-            // Contrato completo (Pipeline /model/info)
-            'idade_materna' => $idadeMaterna,
-            'etnia' => $this->nullableString($consulta->etnia) ?? 'Branca',
-            'imc_pre_gestacional' => $imc,
-            'paridade' => $paridade,
-            'abortamentos_previos' => (int) ($consulta->abortamentos_previos ?? 0),
-            'historia_natimorto' => (int) ((bool) $consulta->historico_natimorto),
-            'filho_anterior_cardiopatia' => (int) ((bool) $consulta->historico_filho_anterior_chd),
-            'historia_familiar_cardiopatia' => (int) ((bool) $consulta->historico_familiar_chd),
-            'diabetes_pre_gestacional' => $diabetesPre,
-            'diabetes_gestacional' => $diabetesGest,
-            'lupus' => (int) ((bool) $consulta->lupus_eritomatoso_sistemico),
-            'fenilcetonuria' => (int) ((bool) $consulta->fenilcetonuria),
-            'doenca_tireoide' => (int) ((bool) $consulta->doencas_tireoidianas),
-            'hipertensao_cronica' => $hipertensao,
-            'rubeola' => (int) ((bool) $consulta->rubeola),
-            'citomegalovirus' => (int) ((bool) $consulta->citomegalovirus),
-            'toxoplasmose' => (int) ((bool) $consulta->toxoplasmose),
-            'sifilis' => (int) ((bool) $consulta->sifilis),
-            'isotretinoina' => (int) ((bool) $consulta->uso_isotretinoina),
-            'acido_valproico' => (int) ((bool) $consulta->uso_acido_valproico),
-            'litio' => (int) ((bool) $consulta->uso_litio),
-            'alcool' => (int) ((bool) $consulta->alcoolismo),
-            'tabagismo' => $tabagismo,
-            'drogas_ilicitas' => (int) ((bool) $consulta->drogas_ilicitas),
-            'solventes' => $exposicao,
-            'pesticidas' => $exposicao,
-            'idade_gestacional' => $idadeGestacional,
+            'id_gestante' => $gestante?->gestante_id,
+            'etnia' => $this->nullableString($consulta->etnia),
+            'paridade' => $consulta->paridade === null ? null : (int) $consulta->paridade,
+            'imc_gestacional_categoria' => $consulta->imc_gestacional_categoria === null
+                ? null
+                : (string) (int) $consulta->imc_gestacional_categoria,
+            'prematuridade' => (int) ((bool) $consulta->prematuridade),
             'gestacao_gemelar' => $gemelar,
-            'corionicidade' => $corionicidade,
-            'translucencia_nucal_aumentada' => (int) ((bool) $consulta->translucencia_nucal_aumentada),
-            'alteracao_ducto_venoso' => $ducto,
-            'regurgitacao_tricuspide' => (int) ((bool) $consulta->regurgitacao_tricuspide_fetal),
-            'malformacao_extracardiaca' => (int) ((bool) $consulta->malformacoes_extracardiacas_associadas),
-            'restricao_crescimento_fetal' => (int) ((bool) $consulta->crescimento_fetal_rcf_iugr),
+            'abortamentos_previos' => (int) ($consulta->abortamentos_previos ?? 0),
+            'historia_familiar_cardiopatia' => (int) ((bool) $consulta->historico_familiar_chd),
+            'diabetes_gestacional' => (int) ((bool) $consulta->diabetes_gestacional),
+            'diabetes_pre_gestacional' => (int) ((bool) $consulta->diabetes_pre_gestacional),
+            'lupus' => (int) ((bool) $consulta->lupus_eritomatoso_sistemico),
+            'sindrome_sjogren' => (int) ((bool) $consulta->sindrome_sjogren),
+            'doenca_tireoide' => $tireoide ? 1 : 0,
+            'hipertensao_cronica' => (int) ((bool) $consulta->hipertensao_cronica),
+            'hipertensao_pre_eclampsia' => (int) ((bool) $consulta->hipertensao_pre_eclampsia),
+            'eclampsia' => (int) ((bool) $consulta->eclampsia),
+            'drogas_ilicitas' => (int) ((bool) $consulta->drogas_ilicitas),
+            'licitas_teratogenicas' => (int) ((bool) $consulta->licitas_teratogenicas),
             'polidramnio' => $liquido === 'polidramnio' ? 1 : 0,
             'oligodramnio' => $liquido === 'oligodramnio' ? 1 : 0,
-
-            // Aliases legados (PredictRequest enxuto / fallback heuristic)
-            'idade' => $idadeMaterna,
-            'imc' => $imc,
-            'diabetes' => ($diabetesPre === 1 || $diabetesGest === 1) ? 1 : 0,
-            'hipertensao' => $hipertensao,
+            'infeccao_materna_bacteriana' => (int) ((bool) $consulta->infeccao_materna_bacteriana),
         ];
-    }
-
-    private function ductoAlterado(mixed $value): int
-    {
-        if ($value === null || $value === '') {
-            return 0;
-        }
-
-        $v = strtolower(trim((string) $value));
-
-        return str_contains($v, 'alter') || in_array($v, ['1', 'true', 'sim'], true) ? 1 : 0;
-    }
-
-    private function corionicidade(?string $value, bool $gemelar): string
-    {
-        $v = $this->nullableString($value);
-        if ($v !== null) {
-            return $v;
-        }
-
-        return $gemelar ? 'NA' : 'NA';
     }
 
     private function nullableString(mixed $value): ?string

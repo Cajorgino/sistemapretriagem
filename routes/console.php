@@ -10,17 +10,10 @@ Artisan::command('inspire', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Sync automático API Python → MySQL → análises
+| A base clínica é a planilha importada. O sync da API não deve repor
+| o conjunto antigo.
 |--------------------------------------------------------------------------
-| Requer containers `scheduler` + `queue` (docker-compose).
-| Sync puxa só gestantes novas; reprocess enfileira jobs faltantes.
 */
-
-Schedule::command('dataset:sync-from-api --only-new')
-    ->everyFifteenMinutes()
-    ->withoutOverlapping(40)
-    ->runInBackground()
-    ->appendOutputTo(storage_path('logs/dataset-sync.log'));
 
 Schedule::command('analises:reprocess --only-missing')
     ->cron('5,20,35,50 * * * *')

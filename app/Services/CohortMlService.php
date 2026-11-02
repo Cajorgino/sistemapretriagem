@@ -75,7 +75,9 @@ class CohortMlService
             );
         }
 
-        return $this->pythonApi->predictById($id);
+        throw new PythonApiException(
+            'O modelo só lê a ficha da planilha. Este identificador não tem consulta no cadastro.',
+        );
     }
 
     /**
@@ -158,20 +160,16 @@ class CohortMlService
     private function toRow(Gestante $gestante): array
     {
         $consulta = $gestante->consultas->sortByDesc('id')->first();
-        $diabetes = $consulta && ($consulta->diabetes_pre_gestacional || $consulta->diabetes_gestacional);
-        $hipertensao = $consulta && ($consulta->hipertensao || $consulta->hipertensao_cronica);
 
         return [
             'id_gestante' => (string) $gestante->gestante_id,
             'nome' => $gestante->nome_exibicao,
-            'idade_materna' => $consulta?->idade_materna,
             'etnia' => $consulta?->etnia,
-            'imc_pre_gestacional' => $consulta?->imc_pre_gestacional !== null
-                ? (float) $consulta->imc_pre_gestacional
-                : null,
-            'idade_gestacional' => $consulta?->idade_gestacional,
-            'diabetes' => $diabetes ? 1 : 0,
-            'hipertensao' => $hipertensao ? 1 : 0,
+            'paridade' => $consulta?->paridade,
+            'imc_gestacional_categoria' => $consulta?->imc_gestacional_categoria,
+            'prematuridade' => $consulta && $consulta->prematuridade ? 1 : 0,
+            'diabetes_gestacional' => $consulta && $consulta->diabetes_gestacional ? 1 : 0,
+            'chd_confirmada' => $consulta && $consulta->chd_confirmada ? 1 : 0,
         ];
     }
 

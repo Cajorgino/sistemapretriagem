@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Consulta;
 use App\Models\User;
 use App\Services\DatasetGestanteImporter;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -168,4 +169,52 @@ test('dashboard desenha graficos do cohort a partir do cadastro local', function
         ->assertSee('Prevalência de CCF')
         ->assertSee('chart-cohort-prevalencia')
         ->assertDontSee('Gráficos descritivos indisponíveis.');
+});
+
+test('dashboard descreve todas as variaveis da ficha com contagem e percentual', function () {
+    Queue::fake();
+    $importer = app(DatasetGestanteImporter::class);
+    $importer->upsert([
+        'id_gestante' => 'GEST-D1',
+        'idade_materna' => 30,
+        'etnia' => 'Parda',
+        'paridade' => 0,
+        'imc_pre_gestacional' => 22,
+        'idade_gestacional' => 20,
+        'cardiopatia_congenita' => 1,
+        'diabetes_gestacional' => 1,
+    ]);
+    $importer->upsert([
+        'id_gestante' => 'GEST-D2',
+        'idade_materna' => 28,
+        'etnia' => 'Branca',
+        'paridade' => 1,
+        'imc_pre_gestacional' => 22,
+        'idade_gestacional' => 20,
+        'cardiopatia_congenita' => 0,
+    ]);
+
+    Consulta::query()->whereHas('gestante', fn ($q) => $q->where('gestante_id', 'GEST-D1'))->update([
+        'idade_crianca_meses' => 8,
+        'imc_gestacional_categoria' => 0,
+        'prematuridade' => true,
+    ]);
+    Consulta::query()->whereHas('gestante', fn ($q) => $q->where('gestante_id', 'GEST-D2'))->update([
+        'idade_crianca_meses' => 14,
+        'imc_gestacional_categoria' => 1,
+    ]);
+
+    $this->actingAs(medicoDashboard())
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('Leitura descritiva')
+        ->assertSee('2 fichas')
+        ->assertSee('50,0%')
+        ->assertSee('Parda')
+        ->assertSee('Diabetes gestacional')
+        ->assertSee('Prematuridade')
+        ->assertSee('média é 11,0 meses')
+        ->assertSee('Sem registro positivo')
+        ->assertSee('Rubéola')
+        ->assertSee('Fenilcetonúria');
 });

@@ -144,10 +144,35 @@ Os endpoints de mensagem gravam o mesmo registro e retornam o mesmo formato em s
 
 - Mesmo middleware `whatsapp.webhook` + throttle `60,1`.
 - Body/query opcional: `mensagem` (para ranquear trechos), `top_k` (1–12, default 6).
-- Fontes: consultas, última análise, interpretação, documentos indexados (`gestante_documentos`), últimas msgs WhatsApp.
+- Fontes: **PatientSnapshot** (sempre), consultas, última análise, interpretação, documentos indexados (`gestante_documentos`), últimas **20** msgs WhatsApp.
 - Indexar texto: `php artisan whatsapp:rag-index {gestante_id} --titulo="..." --tipo=exame --texto="..."`.
 
-Usado pelo nó **Laravel_RAG** do fluxo n8n antes do Gemini. Docs detalhados no repo `apiwhatsapp`: `docs/RAG-WHATSAPP.md`.
+Usado pelo nó **Laravel_RAG** do fluxo n8n antes do Gemini. O n8n funde `historico_conversa` (Laravel) com o histórico Supabase — incluindo falas da **equipe** na ficha. Docs detalhados no repo `apiwhatsapp`: `docs/RAG-WHATSAPP.md`.
+
+Resposta (campos principais):
+
+```json
+{
+  "found": true,
+  "gestante_id": 3,
+  "contexto_texto": "...",
+  "patient_snapshot": {
+    "primeiro_nome": "Caroline",
+    "idade_gestacional": "22",
+    "pressao_sistolica": 110,
+    "analise_resumo": "risco moderado; eco recomendada",
+    "interpretacao_resumo": "..."
+  },
+  "historico_conversa": [
+    { "role": "user", "text": "Oi", "at": "2026-10-29T19:00:00-03:00" },
+    { "role": "staff", "text": "Olá, aqui é a equipe.", "at": "2026-10-29T19:01:00-03:00" }
+  ],
+  "intencao": "conversa_livre",
+  "pular_ia": false
+}
+```
+
+`historico_conversa.role`: `user` (gestante), `staff` (equipe na ficha), `assistant` (sistema/lembretes).
 
 ### Pausar a IA quando um atendente assume
 
@@ -178,9 +203,13 @@ No cadastro (e no template **Menu inicial**), a gestante recebe:
 
 `pular_ia` só fica `true` quando a **equipe** envia pelo chat da ficha (ou o template **Falar com atendente**). Escolher 1/2/3 **não** pausa a IA.
 
-Se ela **escrever livremente** sem escolher botão, `intencao=conversa_livre` e a IA responde normalmente.
+Se ela **escrever livremente** sem escolher botão, `intencao=conversa_livre` e a IA responde normalmente (com PatientSnapshot no contexto).
 
-Relato de sintoma (ex.: “estou com dor na barriga”) também fica `pular_ia=false` e `intencao=conversa_livre`. O Laravel **não** envia texto pronto: grava o caso, monta o contexto clínico no RAG e o **Gemini continua a conversa**. Não pule o Gemini nesse fluxo.
+Relato de sintoma (ex.: “estou com dor na barriga”) fica `pular_ia=false` e `intencao=sintoma`. O Laravel monta o contexto clínico no RAG e o **Gemini continua a conversa**. Não pule o Gemini nesse fluxo.
+
+Intenções normalizadas no RAG: `conversa_livre` | `sintoma` | `exames_consultas` | `atendimento_humano` | `falar_medico` | `fora_escopo`.
+
+**Escopo:** o canal é exclusivo para gestantes em acompanhamento. Se a mensagem for “não estou mais grávida” (e variações), o Laravel devolve `resposta_pronta` + `pular_ia=true` + `intencao=fora_escopo` e o n8n envia o texto sem chamar o Gemini. O RAG também expõe `gestacao_ativa`, `fora_escopo` e `escopo=gestante_em_acompanhamento`.
 
 Campos extras do RAG:
 
@@ -189,7 +218,9 @@ Campos extras do RAG:
   "pular_ia": false,
   "atendimento_humano": false,
   "menu_opcao": "exames",
-  "intencao": "exames_consultas"
+  "intencao": "exames_consultas",
+  "patient_snapshot": {},
+  "historico_conversa": []
 }
 ```
 

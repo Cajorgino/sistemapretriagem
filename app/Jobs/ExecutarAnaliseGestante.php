@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Exceptions\PythonApiException;
 use App\Models\AnaliseHistorico;
 use App\Models\Consulta;
 use App\Models\Gestante;
@@ -113,19 +112,6 @@ class ExecutarAnaliseGestante implements ShouldBeUnique, ShouldQueue
         Gestante $gestante,
         Consulta $consulta,
     ): array {
-        $codigo = strtoupper(trim((string) $gestante->gestante_id));
-
-        if (preg_match('/^GEST-\d+$/', $codigo) === 1) {
-            try {
-                return $api->predictById($codigo);
-            } catch (PythonApiException $e) {
-                Log::warning('ExecutarAnaliseGestante: predictById falhou, tentando /predict JSON.', [
-                    'id_gestante' => $codigo,
-                    'mensagem' => $e->getMessage(),
-                ]);
-            }
-        }
-
         return $api->predict($mapper->fromConsulta($consulta, $gestante));
     }
 
@@ -142,14 +128,6 @@ class ExecutarAnaliseGestante implements ShouldBeUnique, ShouldQueue
         };
 
         $prob = (float) ($predicao['probabilidade_risco'] ?? $predicao['probability'] ?? 0);
-        $class = isset($predicao['class']) ? (int) $predicao['class'] : ($riscoSlug === 'alto' ? 1 : 0);
-        $recomendaEco = $class === 1 || $riscoSlug === 'alto' || $riscoSlug === 'moderado';
-
-        $prioridade = match ($riscoSlug) {
-            'alto' => $prob >= 0.7 ? 'urgente' : 'alta',
-            'moderado' => 'moderada',
-            default => 'baixa',
-        };
 
         $fonte = is_string($predicao['fonte'] ?? null) ? $predicao['fonte'] : null;
 
@@ -159,9 +137,9 @@ class ExecutarAnaliseGestante implements ShouldBeUnique, ShouldQueue
             'evento_tipo' => $this->eventoTipo,
             'probabilidade_ccf' => $prob,
             'classificacao_risco' => $riscoSlug,
-            'score_prioridade' => round($prob * 100, 2),
-            'prioridade_ecocardiograma' => $prioridade,
-            'recomenda_ecocardiograma' => $recomendaEco,
+            'score_prioridade' => null,
+            'prioridade_ecocardiograma' => null,
+            'recomenda_ecocardiograma' => false,
             'shap' => is_array($predicao['shap'] ?? null) ? $predicao['shap'] : [],
             'predicao' => $predicao,
             'analise' => [
@@ -170,6 +148,7 @@ class ExecutarAnaliseGestante implements ShouldBeUnique, ShouldQueue
                 'experimento' => $predicao['experimento'] ?? null,
                 'modo_inferencia' => $predicao['modo_inferencia'] ?? $fonte,
                 'fallback_motivo' => $predicao['fallback_motivo'] ?? null,
+                'define_fila_ecocardiograma' => false,
             ],
             'full_response' => $predicao,
             'status' => 'concluida',

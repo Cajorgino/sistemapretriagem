@@ -289,7 +289,8 @@ test('17. gestante retorna ao menu inicial com 0', function () {
 
     expect($r['estado'])->toBe(WhatsAppFluxoEstado::MENU_INICIAL)
         ->and($r['resposta'])->toContain('seja bem-vinda ao Cardioprenatal')
-        ->and($r['resposta'])->toContain('1. Falar com atendente')
+        ->and($r['resposta'])->toContain('Posso consultar informações cadastradas')
+        ->and($r['resposta'])->not->toContain('1. Falar com atendente')
         ->and($r['resposta'])->toContain('Caroline');
 });
 

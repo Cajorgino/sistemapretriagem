@@ -18,6 +18,18 @@
     $mmDestaques = is_array($mm['destaques'] ?? null) ? $mm['destaques'] : [];
     $mmProducao = is_array($mm['producao'] ?? null) ? $mm['producao'] : [];
     $mmMelhorF1 = $mmDestaques['melhor_f1_cv']['modelo'] ?? null;
+    $mmUsaCv = false;
+    foreach ($mm['modelos'] ?? [] as $modeloCatalogo) {
+        $testeCatalogo = is_array($modeloCatalogo['teste'] ?? null) ? $modeloCatalogo['teste'] : [];
+        $treinoCatalogo = is_array($modeloCatalogo['treino_cv'] ?? null) ? $modeloCatalogo['treino_cv'] : [];
+        if (($testeCatalogo['roc_auc'] ?? null) === null && ($treinoCatalogo['roc_auc'] ?? null) !== null) {
+            $mmUsaCv = true;
+            break;
+        }
+    }
+    if ($mmUsaCv) {
+        $destaqueLabels['melhor_roc_auc_teste'] = 'Maior AUC na validação';
+    }
     $fmtPct = static fn ($v) => $v === null || $v === '' ? 'Não informado' : number_format((float) $v * 100, 1, ',', '.').'%';
     $destaqueLabels = [
         'melhor_f1_cv' => 'Melhor F1 (CV)',
@@ -40,38 +52,40 @@
         'sociodemograficas' => [
             'id' => 'socio',
             'titulo' => 'Características sociodemográficas',
-            'texto' => 'Perfil da população segundo variáveis como etnia.',
+            'texto' => 'Quem compõe a base: cor ou etnia registrada e quantos filhos a gestante já teve.',
             'graficos' => [],
             'figuras' => [],
         ],
         'antropometricas' => [
             'id' => 'antropo',
             'titulo' => 'Características antropométricas',
-            'texto' => 'Idade, IMC e demais medidas já disponíveis na base.',
+            'texto' => 'Meses de vida na ficha e a faixa de IMC da gestação. Não é a idade da mãe.',
             'graficos' => [],
             'figuras' => [],
         ],
         'clinicas' => [
             'id' => 'clinicas',
             'titulo' => 'Características clínicas',
-            'texto' => 'Comorbidades, intercorrências e desfechos agregados.',
+            'texto' => 'Quais condições maternas aparecem na planilha e, entre os casos, quantos tinham cada uma. Rubéola e fenilcetonúria foram coletadas e não ocorreram.',
             'graficos' => [],
             'figuras' => [],
         ],
         'obstetricas' => [
             'id' => 'obstetricas',
             'titulo' => 'Características obstétricas',
-            'texto' => 'Idade gestacional e demais variáveis do pré-natal.',
+            'texto' => 'Prematuridade, gravidez gemelar, aborto e volume de líquido amniótico.',
             'graficos' => [],
             'figuras' => [],
         ],
     ];
     $mapaCanvas = [
         'etnia' => 'sociodemograficas',
-        'distribuicao' => 'obstetricas',
+        'paridade' => 'sociodemograficas',
+        'idade_crianca' => 'antropometricas',
+        'imc' => 'antropometricas',
         'fatores_risco' => 'clinicas',
-        'intercorrencias_cat' => 'clinicas',
-        'top_intercorrencias' => 'clinicas',
+        'casos_ccf' => 'clinicas',
+        'obstetricos' => 'obstetricas',
         'prevalencia' => 'clinicas',
     ];
     $mapaFiguras = [
@@ -102,12 +116,16 @@
 <style>
     .dash { max-width: 1120px; margin: 0 auto; }
 
+    .dash-perfil-fixo {
+        margin: 0 0 22px;
+    }
     .dash-hero {
-        margin: 0 0 18px;
-        padding: clamp(18px, 3vw, 24px);
+        margin: 0 0 10px;
+        padding: clamp(14px, 2.4vw, 20px);
         border-radius: 16px;
         border: 1px solid var(--border);
         background: var(--surface);
+        box-shadow: 0 8px 18px rgba(127, 12, 26, 0.06);
     }
     .dash-hero-top {
         display: flex; flex-wrap: wrap; align-items: flex-start;
@@ -120,10 +138,14 @@
         line-height: 0;
     }
     .dash-hero h1 {
-        font-family: 'DM Sans', sans-serif;
-        font-size: 13px; font-weight: 600;
-        letter-spacing: 0.04em; text-transform: uppercase;
-        color: var(--muted); margin: 0; line-height: 1.2;
+        font-family: 'DM Serif Display', serif;
+        font-size: clamp(1.7rem, 3vw, 2.15rem);
+        font-weight: 400;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--primary);
+        margin: 0;
+        line-height: 1.15;
     }
     .dash-hero-actions {
         display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
@@ -153,17 +175,15 @@
     .dash-snapshot {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
+        gap: 14px;
     }
     .dash-snap {
-        padding: 12px 14px;
-        border-radius: 12px;
+        padding: 16px 18px;
+        border-radius: 14px;
         background: #fff;
         border: 1px solid var(--border);
-        text-decoration: none; color: inherit;
-        transition: border-color .15s ease;
+        color: inherit;
     }
-    a.dash-snap:hover { border-color: #e8bcbc; }
     .dash-snap-label {
         font-size: 11px; font-weight: 600;
         color: var(--muted); margin-bottom: 4px;
@@ -221,15 +241,29 @@
     }
     .dash-tab-panel[hidden] { display: none !important; }
     .dash-subnav {
-        display: flex; flex-wrap: wrap; gap: 8px;
-        margin: 0 0 22px;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 6px;
+        margin: 0;
+        padding: 8px;
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.94);
     }
     .dash-subnav a {
-        font-size: 12px; font-weight: 600; text-decoration: none;
-        color: var(--muted); padding: 6px 10px; border-radius: 8px;
-        border: 1px solid var(--border); background: #fff;
+        flex: 0 0 auto;
+        white-space: nowrap;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--muted);
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: transparent;
     }
-    .dash-subnav a:hover { color: var(--primary); border-color: #e8bcbc; }
+    .dash-subnav a:hover { color: var(--primary); background: var(--accent-light); }
     .dash-pick { cursor: pointer; }
     .dash-pick.is-selected td { background: var(--accent-light) !important; }
     .dash-individual-layout {
@@ -258,7 +292,9 @@
         .dash-snap { padding: 14px; }
     }
 
-    .dash-area { margin-bottom: 44px; scroll-margin-top: 72px; }
+    .dash-area,
+    .dash-zone { scroll-margin-top: 20px; }
+    .dash-area { margin-bottom: 56px; }
     .dash-area-head { margin-bottom: 18px; }
     .dash-area-kicker {
         font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
@@ -270,7 +306,7 @@
     }
     .dash-area-head p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
 
-    .dash-zone { margin-bottom: 36px; scroll-margin-top: 72px; }
+    .dash-zone { margin-bottom: 28px; scroll-margin-top: 20px; }
     .dash-zone-head {
         display: flex; flex-wrap: wrap; align-items: baseline;
         justify-content: space-between; gap: 8px 16px;
@@ -332,16 +368,70 @@
     .dash-panel-body--flush { padding: 0; }
 
     .dash-charts {
-        display: grid; gap: 12px; margin-bottom: 18px;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+        display: grid; gap: 18px; margin-bottom: 18px;
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+    @media (min-width: 980px) {
+        .dash-charts { grid-template-columns: 1fr 1fr; }
     }
     .dash-chart {
         background: var(--surface); border: 1px solid var(--border);
-        border-radius: 14px; padding: 16px; min-height: 250px;
+        border-radius: 18px; padding: 20px 22px 18px; min-height: 0;
         display: flex; flex-direction: column;
+        box-shadow: 0 12px 28px rgba(127, 12, 26, 0.06);
     }
-    .dash-chart h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--text); }
-    .dash-chart-wrap { position: relative; flex: 1; min-height: 180px; }
+    .dash-chart--wide { grid-column: 1 / -1; }
+    .dash-chart h3 {
+        margin: 0 0 10px;
+        font-family: 'DM Serif Display', serif;
+        font-size: 1.45rem;
+        font-weight: 400;
+        color: var(--primary);
+        line-height: 1.2;
+    }
+    .dash-chart-note {
+        margin: 0 0 16px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #faf6f6;
+        border-left: 3px solid var(--accent);
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--text);
+    }
+    .dash-chart-note strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+    }
+    .dash-chart-wrap { position: relative; flex: 1; min-height: 360px; }
+    .dash-prevalencia {
+        display: grid;
+        grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+        gap: 8px 28px;
+        align-items: center;
+    }
+    .dash-prevalencia .dash-chart-wrap { min-height: 320px; height: 320px; }
+    .dash-prevalencia-stat {
+        font-family: 'DM Serif Display', serif;
+        font-size: clamp(2rem, 4vw, 2.6rem);
+        color: var(--accent);
+        line-height: 1;
+    }
+    .dash-prevalencia-stat span {
+        display: block;
+        margin-top: 8px;
+        font-family: 'DM Sans', system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--muted);
+        line-height: 1.45;
+    }
 
     .dash-risco-legend {
         display: flex; flex-wrap: wrap; gap: 10px 16px;
@@ -442,6 +532,32 @@
     }
     .dash-footnote { font-size: 12px; color: var(--muted); margin: 10px 2px 0; line-height: 1.4; }
 
+    .dash-leitura {
+        margin: 0 0 22px;
+        padding: 16px 18px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: #fff;
+    }
+    .dash-leitura p:last-child {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text);
+    }
+    .dash-leitura-texto {
+        margin: -4px 0 16px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text);
+    }
+    .dash-desc-tables {
+        display: grid;
+        gap: 14px;
+        margin-top: 14px;
+    }
+    .dash-freq-table { min-width: 520px; }
+
     .dash-desc-grid {
         display: grid; gap: 14px;
         grid-template-columns: 1fr;
@@ -487,7 +603,8 @@
         .dash-anchor button { min-width: 0; flex: 1 1 100%; }
         .dash-panel { border-radius: 12px; }
         .dash-model-table { min-width: 520px; }
-        .dash-chart { min-height: 200px; padding: 14px; }
+        .dash-chart { padding: 14px; }
+        .dash-prevalencia { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 420px) {
@@ -498,22 +615,7 @@
 </style>
 
 <div class="dash">
-    <header class="dash-hero">
-        <div class="dash-hero-top">
-            <div>
-                <p class="dash-brand">@include('partials.brand-logo', ['variant' => 'dash'])</p>
-                <h1>Perfil da população</h1>
-                <p class="page-subtitle" style="margin: 6px 0 0;">Rastreio de cardiopatias congênitas em gestantes diabéticas.</p>
-            </div>
-            <div class="dash-hero-actions">
-                <span class="dash-date">{{ $hoje }}</span>
-                <a class="dash-btn" href="{{ route('gestantes.index') }}">Gestantes</a>
-            </div>
-        </div>
-    </header>
-
     @include('partials.dashboard-geral')
-
 </div>
 
 @if (count($gcVariaveis) > 0)
@@ -523,16 +625,15 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const cohort = @json($gcVariaveis);
                 const p = window.GestRiskCharts.palette;
+                const particoes = ['etnia', 'paridade', 'idade_crianca', 'imc', 'prevalencia'];
                 GestRiskCharts.ready(function () {
                     cohort.forEach(function (g) {
                         const id = 'chart-cohort-' + g.slug;
-                        const colors = g.tipo === 'doughnut'
-                            ? [p.accent, p.ok, p.riskMid, p.riskHigh, '#bdc3c7', p.muted]
-                            : g.valores.map(function () { return 'rgba(127, 12, 26, 0.72)'; });
                         if (g.tipo === 'doughnut') {
-                            GestRiskCharts.doughnut(id, g.labels, g.valores, colors.slice(0, g.labels.length));
+                            GestRiskCharts.cohortDoughnut(id, g.labels, g.valores, [p.riskHigh, '#f0d5d5']);
                         } else {
-                            GestRiskCharts.bar(id, g.labels, g.valores, colors);
+                            const unidade = g.slug === 'casos_ccf' ? 'cardiopatias' : 'registros';
+                            GestRiskCharts.cohortBar(id, g.labels, g.valores, unidade, particoes.indexOf(g.slug) !== -1);
                         }
                     });
                 });

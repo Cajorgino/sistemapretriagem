@@ -112,6 +112,25 @@ class GestanteWhatsappMessageRecorder
             return;
         }
 
+        $ultimaEntrada = GestanteWhatsapp::query()
+            ->where('gestante_id', $gestante->id)
+            ->where('tipo', 'entrada')
+            ->orderByDesc('id')
+            ->value('mensagem');
+
+        if ($this->templates->textoFimGestacao(is_string($ultimaEntrada) ? $ultimaEntrada : null)) {
+            $ctx = $this->templates->contextFromGestante($gestante);
+            $this->ultimoFluxo = [
+                'estado' => $gestante->whatsapp_fluxo_estado,
+                'resposta' => $this->templates->mensagemForaEscopoNaoGestante((string) ($ctx['primeiro_nome'] ?? '')),
+                'respondido' => true,
+                'pular_ia' => true,
+                'intencao' => 'fora_escopo',
+            ];
+
+            return;
+        }
+
         // A resposta automática é do Gemini (n8n). O menu 1/2/3 não intercepta a mensagem.
         // A pausa da equipe continua: pular_ia impede o Gemini de responder no lugar do médico.
         $this->ultimoFluxo = [
