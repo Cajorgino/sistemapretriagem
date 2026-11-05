@@ -183,7 +183,9 @@ class ConsultaController extends Controller
      */
     private function importDatasetMl(array $header, array $linhas, int $skippedLeitura = 0): JsonResponse
     {
-        $faltando = array_values(array_diff(self::COLUNAS_ML_MINIMAS, $header));
+        $planilhaClinica = in_array('idade_crianca_meses', $header, true)
+            || in_array('imc_gestacional_categoria', $header, true);
+        $faltando = $planilhaClinica ? [] : array_values(array_diff(self::COLUNAS_ML_MINIMAS, $header));
         if ($faltando !== []) {
             return response()->json([
                 'message' => 'Planilha incompleta: faltam colunas obrigatórias.',

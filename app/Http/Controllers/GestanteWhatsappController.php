@@ -24,6 +24,7 @@ class GestanteWhatsappController extends Controller
     public function index(Request $request)
     {
         $this->authorize(User::ABILITY_WHATSAPP);
+        $this->whatsAppMessageRecorder->vincularMensagensOrfas();
         $query = $this->buildHistoricoResumoQuery($request);
         $this->applyOrdering($request, $query);
 
@@ -66,6 +67,7 @@ class GestanteWhatsappController extends Controller
     public function historicoPage(Request $request): View
     {
         $this->authorize(User::ABILITY_WHATSAPP);
+        $semVinculo = $this->whatsAppMessageRecorder->vincularMensagensOrfas();
         $query = $this->buildHistoricoResumoQuery($request);
         $this->applyOrdering($request, $query);
 
@@ -73,6 +75,7 @@ class GestanteWhatsappController extends Controller
 
         return view('historico_whatsapp.index', [
             'rows' => $rows,
+            'mensagensSemVinculo' => $semVinculo,
             'sort' => $request->query('sort', 'ultima_data'),
             'direction' => strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc',
         ]);
@@ -84,6 +87,7 @@ class GestanteWhatsappController extends Controller
     public function show(Request $request, Gestante $gestante)
     {
         $this->authorize(User::ABILITY_WHATSAPP);
+        $this->whatsAppMessageRecorder->vincularMensagensOrfas();
         $mensagens = GestanteWhatsapp::query()
             ->where('gestante_id', $gestante->id)
             ->when($request->filled('acompanhamento_id'), function ($q) use ($request) {
@@ -106,6 +110,26 @@ class GestanteWhatsappController extends Controller
 
         return response()->json([
             'gestante' => new GestanteResource($gestante),
+            'mensagens' => $mensagens->map(fn (GestanteWhatsapp $m) => $m->toConversaPayload()),
+        ]);
+    }
+
+    /**
+     * Mensagens recebidas sem telefone que corresponda a uma gestante cadastrada.
+     */
+    public function semVinculo()
+    {
+        $this->authorize(User::ABILITY_WHATSAPP);
+        $this->whatsAppMessageRecorder->vincularMensagensOrfas();
+
+        $mensagens = GestanteWhatsapp::query()
+            ->whereNull('gestante_id')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        return response()->json([
+            'gestante' => null,
             'mensagens' => $mensagens->map(fn (GestanteWhatsapp $m) => $m->toConversaPayload()),
         ]);
     }

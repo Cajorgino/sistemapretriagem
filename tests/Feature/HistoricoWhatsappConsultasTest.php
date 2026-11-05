@@ -41,6 +41,41 @@ function acompanhamentoHistorico(Gestante $gestante, array $attrs = []): Acompan
     ], $attrs));
 }
 
+test('historico recupera conversa gravada sem gestante entre falas da mesma pessoa', function () {
+    $gestante = gestanteHistoricoWhatsapp(['telefone' => '14997766598']);
+
+    GestanteWhatsapp::query()->create([
+        'gestante_id' => $gestante->id,
+        'mensagem' => 'Mensagem anterior',
+        'tipo' => 'saida',
+        'categoria' => GestanteWhatsapp::CATEGORIA_CONVERSA,
+    ]);
+    $orfa = GestanteWhatsapp::query()->create([
+        'gestante_id' => null,
+        'mensagem' => 'não estou gravida',
+        'tipo' => 'entrada',
+        'categoria' => GestanteWhatsapp::CATEGORIA_CONVERSA,
+    ]);
+    GestanteWhatsapp::query()->create([
+        'gestante_id' => $gestante->id,
+        'mensagem' => 'Mensagem seguinte',
+        'tipo' => 'saida',
+        'categoria' => GestanteWhatsapp::CATEGORIA_CONVERSA,
+    ]);
+
+    $this->actingAs(medicoHistoricoWhatsapp())
+        ->get(route('historico-whatsapp.index'))
+        ->assertOk()
+        ->assertSee('Ana Clara')
+        ->assertSee('Mensagem seguinte');
+
+    expect((int) $orfa->fresh()->gestante_id)->toBe((int) $gestante->id);
+
+    $this->getJson('/api/gestante-whatsapp/'.$gestante->id)
+        ->assertOk()
+        ->assertJsonFragment(['mensagem' => 'não estou gravida']);
+});
+
 test('historico whatsapp lista conversas e nao mistura agenda', function () {
     $gestante = gestanteHistoricoWhatsapp();
     $retorno = acompanhamentoHistorico($gestante);

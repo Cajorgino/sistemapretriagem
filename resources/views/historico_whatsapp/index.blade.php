@@ -79,6 +79,21 @@
     </div>
 
     <div class="main-card">
+        @if (($mensagensSemVinculo ?? 0) > 0)
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: rgba(253, 240, 240, 0.55);">
+                <p style="margin: 0; color: var(--text); line-height: 1.45;">
+                    {{ $mensagensSemVinculo }} {{ $mensagensSemVinculo === 1 ? 'mensagem não pôde ser ligada' : 'mensagens não puderam ser ligadas' }} a uma gestante cadastrada.
+                </p>
+                <button type="button"
+                        class="btn-table btn-table--primary"
+                        data-gestante-id="sem-vinculo"
+                        data-gestante-label="Sem cadastro"
+                        onclick="abrirConversa(this)">
+                    Ver mensagens
+                </button>
+            </div>
+        @endif
+
         <div class="card-toolbar">
             <h2 class="card-title" style="margin: 0; font-size: 20px;">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -309,7 +324,9 @@
                 modal.setAttribute('aria-hidden', 'false');
                 document.body.style.overflow = 'hidden';
 
-                let url = '{{ url('/api/gestante-whatsapp') }}/' + encodeURIComponent(id);
+                let url = id === 'sem-vinculo'
+                    ? '{{ url('/api/gestante-whatsapp/sem-vinculo') }}'
+                    : '{{ url('/api/gestante-whatsapp') }}/' + encodeURIComponent(id);
                 if (acompanhamentoId) {
                     url += '?acompanhamento_id=' + encodeURIComponent(acompanhamentoId);
                 }

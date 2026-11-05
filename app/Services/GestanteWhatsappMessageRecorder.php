@@ -34,6 +34,16 @@ class GestanteWhatsappMessageRecorder
         $gestante = array_key_exists('gestante', $extra)
             ? $extra['gestante']
             : ($normalized !== '' ? $this->findGestanteByTelefone($normalized) : null);
+        if ($gestante === null && $normalized !== '' && ! array_key_exists('gestante', $extra)) {
+            $gestanteIdAnterior = GestanteWhatsapp::query()
+                ->where('external_user_id', $normalized)
+                ->whereNotNull('gestante_id')
+                ->orderByDesc('id')
+                ->value('gestante_id');
+            if ($gestanteIdAnterior) {
+                $gestante = Gestante::query()->find($gestanteIdAnterior);
+            }
+        }
         $gestanteId = $gestante?->id;
 
         $tempoAtendimento = null;
@@ -62,7 +72,7 @@ class GestanteWhatsappMessageRecorder
             'tempo_atendimento' => $tempoAtendimento,
             'canal' => $extra['canal'] ?? GestanteWhatsapp::CANAL_WHATSAPP,
             'canal_identidade_id' => $extra['canal_identidade_id'] ?? null,
-            'external_user_id' => $extra['external_user_id'] ?? null,
+            'external_user_id' => $extra['external_user_id'] ?? ($normalized !== '' ? $normalized : null),
             'external_chat_id' => $extra['external_chat_id'] ?? null,
             'metadata' => $extra['metadata'] ?? null,
         ]);
@@ -142,6 +152,45 @@ class GestanteWhatsappMessageRecorder
         ];
     }
 
+    /**
+     * Liga mensagens gravadas sem gestante quando a conversa anterior e a seguinte
+     * são da mesma pessoa, ou quando a mensagem é a continuação recente dela.
+     */
+    public function vincularMensagensOrfas(): int
+    {
+        $orfas = GestanteWhatsapp::query()
+            ->whereNull('gestante_id')
+            ->orderBy('id')
+            ->get(['id', 'created_at']);
+
+        foreach ($orfas as $orfa) {
+            $anterior = GestanteWhatsapp::query()
+                ->where('id', '<', $orfa->id)
+                ->whereNotNull('gestante_id')
+                ->orderByDesc('id')
+                ->first(['id', 'gestante_id', 'created_at']);
+            $seguinte = GestanteWhatsapp::query()
+                ->where('id', '>', $orfa->id)
+                ->whereNotNull('gestante_id')
+                ->orderBy('id')
+                ->first(['id', 'gestante_id', 'created_at']);
+
+            $gestanteId = null;
+            if ($anterior && $seguinte && (int) $anterior->gestante_id === (int) $seguinte->gestante_id
+                && abs($anterior->created_at->diffInHours($seguinte->created_at)) <= 12) {
+                $gestanteId = (int) $anterior->gestante_id;
+            } elseif ($anterior && ! $seguinte && abs($anterior->created_at->diffInHours($orfa->created_at)) <= 36) {
+                $gestanteId = (int) $anterior->gestante_id;
+            }
+
+            if ($gestanteId) {
+                GestanteWhatsapp::query()->whereKey($orfa->id)->update(['gestante_id' => $gestanteId]);
+            }
+        }
+
+        return GestanteWhatsapp::query()->whereNull('gestante_id')->count();
+    }
+
     private function findGestanteByTelefone(string $normalized): ?Gestante
     {
         $candidates = [$normalized];
@@ -164,7 +213,31 @@ class GestanteWhatsappMessageRecorder
             return null;
         }
 
-        return Gestante::query()->whereIn('telefone', $candidates)->first();
+        $exata = Gestante::query()->whereIn('telefone', $candidates)->first();
+        if ($exata) {
+            return $exata;
+        }
+
+        $sufixos = [];
+        foreach ($candidates as $candidate) {
+            if (strlen($candidate) >= 11) {
+                $sufixos[] = substr($candidate, -11);
+            }
+            if (strlen($candidate) >= 10) {
+                $sufixos[] = substr($candidate, -10);
+            }
+        }
+
+        $encontradas = collect();
+        foreach (array_values(array_unique($sufixos)) as $sufixo) {
+            $encontradas = $encontradas->merge(
+                Gestante::query()->where('telefone', 'like', '%'.$sufixo)->limit(2)->get()
+            );
+        }
+
+        $unicas = $encontradas->unique('id');
+
+        return $unicas->count() === 1 ? $unicas->first() : null;
     }
 
     private function normalizeTelefone(?string $value): string

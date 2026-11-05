@@ -18,9 +18,8 @@
                 Arquivo CSV ou Excel
             </h2>
             <p style="color: var(--muted); font-size: 14px; line-height: 1.55; margin-bottom: 24px;">
-                O arquivo precisa da coluna <code>id_gestante</code> (além de
-                <code>idade_materna</code>, <code>imc_pre_gestacional</code>,
-                <code>paridade</code> e <code>idade_gestacional</code>).
+                Aceita o dataset com <code>id_gestante</code> ou a planilha clínica
+                com a coluna <code>REGISTRO</code> (a linha de capa é ignorada).
                 Reimportar o mesmo arquivo só atualiza quem já existe e inclui as linhas novas.
             </p>
 

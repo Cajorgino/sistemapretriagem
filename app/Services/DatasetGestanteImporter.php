@@ -23,7 +23,11 @@ class DatasetGestanteImporter
             throw new \InvalidArgumentException('id_gestante vazio');
         }
 
-        $idade = $this->toFloat($linha['idade_materna'] ?? $linha['idade'] ?? null) ?? 28.0;
+        $planilha = $this->linhaPlanilhaClinica($linha);
+        $idade = $this->toFloat($linha['idade_materna'] ?? null);
+        if (! $planilha) {
+            $idade = $idade ?? $this->toFloat($linha['idade'] ?? null) ?? 28.0;
+        }
 
         $gestante = Gestante::query()->where('gestante_id', $codigo)->first();
         $created = false;
@@ -31,7 +35,7 @@ class DatasetGestanteImporter
         if (! $gestante) {
             $gestante = new Gestante;
             $gestante->nome = 'Gestante '.$codigo;
-            $gestante->data_nascimento = Carbon::today()->subYears((int) round($idade));
+            $gestante->data_nascimento = $this->dataNascimento($idade, $linha, $planilha);
             $gestante->telefone = null;
             $gestante->cpf = null;
             $gestante->save();
@@ -54,11 +58,15 @@ class DatasetGestanteImporter
             return $created ? 'created' : 'updated';
         }
 
-        Consulta::create(array_merge(
-            $this->defaultsVitais($clinicos['imc_pre_gestacional'] ?? null, (bool) ($clinicos['hipertensao'] ?? false), (bool) ($clinicos['translucencia_nucal_aumentada'] ?? false)),
-            $clinicos,
-            ['data_consulta' => Carbon::today()->toDateString()],
-        ));
+        $criar = array_merge($clinicos, ['data_consulta' => Carbon::today()->toDateString()]);
+        if (! $planilha) {
+            $criar = array_merge(
+                $this->defaultsVitais($clinicos['imc_pre_gestacional'] ?? null, (bool) ($clinicos['hipertensao'] ?? false), (bool) ($clinicos['translucencia_nucal_aumentada'] ?? false)),
+                $criar,
+            );
+        }
+
+        Consulta::create($criar);
 
         return $created ? 'created' : 'updated';
     }
@@ -69,7 +77,7 @@ class DatasetGestanteImporter
      * @param  array<string, mixed>  $linha
      * @return array<string, mixed>
      */
-    private function mapearClinicos(array $linha, float $idade): array
+    private function mapearClinicos(array $linha, ?float $idade): array
     {
         $poli = $this->toBool($linha['polidramnio'] ?? null);
         $oligo = $this->toBool($linha['oligodramnio'] ?? null);
@@ -86,7 +94,10 @@ class DatasetGestanteImporter
         $chd = $this->toBool($linha['cardiopatia_congenita'] ?? null);
         $ducto = $this->toBool($linha['alteracao_ducto_venoso'] ?? null);
         $imc = $this->toFloat($linha['imc_pre_gestacional'] ?? $linha['imc'] ?? null);
-        $idadeGestacional = (int) round($this->toFloat($linha['idade_gestacional'] ?? null) ?? 20);
+        $idadeGestacional = $this->toFloat($linha['idade_gestacional'] ?? null);
+        if ($idadeGestacional === null && ! array_key_exists('idade_gestacional', $linha) && ! $this->linhaPlanilhaClinica($linha)) {
+            $idadeGestacional = 20.0;
+        }
         $usoMeds = $this->toBool($linha['isotretinoina'] ?? null)
             || $this->toBool($linha['acido_valproico'] ?? null)
             || $this->toBool($linha['litio'] ?? null);
@@ -96,10 +107,10 @@ class DatasetGestanteImporter
             $diabetesGestacional = $this->toBool($linha['diabetes']);
         }
 
-        return [
-            'idade_materna' => (int) round($idade),
-            'idade_gestacional' => $idadeGestacional,
-            'etnia' => $this->nullableString($linha['etnia'] ?? null),
+        $clinicos = [
+            'idade_materna' => $idade === null ? null : (int) round($idade),
+            'idade_gestacional' => $idadeGestacional === null ? null : (int) round($idadeGestacional),
+            'etnia' => $this->etnia($linha['etnia'] ?? null),
             'imc_pre_gestacional' => $imc,
             'paridade' => (int) round($this->toFloat($linha['paridade'] ?? null) ?? 0),
             'abortamentos_previos' => (int) round($this->toFloat($linha['abortamentos_previos'] ?? null) ?? 0),
@@ -110,12 +121,14 @@ class DatasetGestanteImporter
             'diabetes_gestacional' => $diabetesGestacional,
             'hipertensao' => $hipertensao,
             'hipertensao_cronica' => $hipertensao,
-            'hipertensao_pre_eclampsia' => false,
+            'hipertensao_pre_eclampsia' => $this->toBool($linha['hipertensao_pre_eclampsia'] ?? null),
             'obesidade_pre_gestacional' => $imc !== null && $imc >= 30,
             'uso_medicamentos' => $usoMeds,
             'lupus_eritomatoso_sistemico' => $this->toBool($linha['lupus'] ?? null),
             'fenilcetonuria' => $this->toBool($linha['fenilcetonuria'] ?? null),
-            'doencas_tireoidianas' => $this->toBool($linha['doenca_tireoide'] ?? null),
+            'doencas_tireoidianas' => $this->toBool($linha['doenca_tireoide'] ?? null)
+                || $this->toBool($linha['hipotireoidismo'] ?? null)
+                || $this->toBool($linha['hipertireoidismo'] ?? null),
             'rubeola' => $this->toBool($linha['rubeola'] ?? null),
             'citomegalovirus' => $this->toBool($linha['citomegalovirus'] ?? null),
             'toxoplasmose' => $this->toBool($linha['toxoplasmose'] ?? null),
@@ -137,6 +150,85 @@ class DatasetGestanteImporter
             'polidramnio_oligoidramnio' => $liquido,
             'chd_confirmada' => $chd,
         ];
+
+        return $this->comColunasPlanilha($clinicos, $linha);
+    }
+
+    /**
+     * @param  array<string, mixed>  $clinicos
+     * @param  array<string, mixed>  $linha
+     * @return array<string, mixed>
+     */
+    private function comColunasPlanilha(array $clinicos, array $linha): array
+    {
+        foreach ([
+            'idade_crianca_meses' => 'int',
+            'imc_gestacional_categoria' => 'int',
+            'prematuridade' => 'bool',
+            'sindrome_sjogren' => 'bool',
+            'hipotireoidismo' => 'bool',
+            'hipertireoidismo' => 'bool',
+            'eclampsia' => 'bool',
+            'licitas_teratogenicas' => 'bool',
+            'infeccao_materna_bacteriana' => 'bool',
+        ] as $campo => $tipo) {
+            if (! array_key_exists($campo, $linha)) {
+                continue;
+            }
+
+            $clinicos[$campo] = $tipo === 'int'
+                ? (($numero = $this->toFloat($linha[$campo])) === null ? null : (int) round($numero))
+                : $this->toBool($linha[$campo]);
+        }
+
+        if ($this->linhaPlanilhaClinica($linha)) {
+            $clinicos['registro_planilha'] = strtoupper(trim((string) ($linha['id_gestante'] ?? '')));
+        }
+
+        return $clinicos;
+    }
+
+    /**
+     * @param  array<string, mixed>  $linha
+     */
+    private function linhaPlanilhaClinica(array $linha): bool
+    {
+        return array_key_exists('idade_crianca_meses', $linha)
+            || array_key_exists('imc_gestacional_categoria', $linha);
+    }
+
+    /**
+     * @param  array<string, mixed>  $linha
+     */
+    private function dataNascimento(?float $idade, array $linha, bool $planilha): ?Carbon
+    {
+        if ($idade !== null) {
+            return Carbon::today()->subYears((int) round($idade));
+        }
+
+        if (! $planilha) {
+            return Carbon::today()->subYears(28);
+        }
+
+        $meses = $this->toFloat($linha['idade_crianca_meses'] ?? null);
+
+        return $meses === null ? null : Carbon::today()->subMonths((int) round($meses));
+    }
+
+    private function etnia(mixed $value): ?string
+    {
+        $v = trim((string) ($value ?? ''));
+        if ($v === '' || strtolower($v) === 'null') {
+            return null;
+        }
+
+        return match ($v) {
+            '0' => 'Outra',
+            '1' => 'Branca',
+            '2' => 'Parda',
+            '3' => 'Preta',
+            default => $v,
+        };
     }
 
     /**

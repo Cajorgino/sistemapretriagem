@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
 
         Route::prefix('api')->group(function () {
             Route::get('/gestante-whatsapp', [GestanteWhatsappController::class, 'index']);
+            Route::get('/gestante-whatsapp/sem-vinculo', [GestanteWhatsappController::class, 'semVinculo']);
             Route::get('/gestante-whatsapp/{gestante}', [GestanteWhatsappController::class, 'show']);
         });
     });

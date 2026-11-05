@@ -4,6 +4,7 @@ namespace App\Services;
 
 use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
@@ -13,6 +14,27 @@ class PlanilhaGestanteReader
 {
     /** @var list<string> */
     public const EXTENSOES = ['csv', 'txt', 'xlsx', 'xls'];
+
+    /**
+     * Rótulos da planilha clínica (capa + legenda) para as chaves já usadas na importação.
+     *
+     * @var array<string, string>
+     */
+    private const ALIASES = [
+        'registro' => 'id_gestante',
+        'idade_meses' => 'idade_crianca_meses',
+        'gemelar' => 'gestacao_gemelar',
+        'raca_cor' => 'etnia',
+        'img_gestacional' => 'imc_gestacional_categoria',
+        'aborto' => 'abortamentos_previos',
+        'cc_em_1_grau' => 'historia_familiar_cardiopatia',
+        'dmg' => 'diabetes_gestacional',
+        'dm_previo' => 'diabetes_pre_gestacional',
+        'lupus_eritematoso_sistemico' => 'lupus',
+        'has' => 'hipertensao_cronica',
+        'pre_eclampsia' => 'hipertensao_pre_eclampsia',
+        'infeccao_materna_bacteriana_aguda' => 'infeccao_materna_bacteriana',
+    ];
 
     public function extensaoValida(string $nomeArquivo): bool
     {
@@ -50,17 +72,26 @@ class PlanilhaGestanteReader
             throw new \RuntimeException('Não foi possível abrir o CSV.');
         }
 
-        $headerRaw = fgetcsv($handle);
-        if ($headerRaw === false) {
-            fclose($handle);
+        $matriz = [];
+        while (($row = fgetcsv($handle)) !== false) {
+            $matriz[] = $row;
+        }
+        fclose($handle);
+
+        if ($matriz === []) {
             throw new \RuntimeException('Arquivo sem cabeçalho.');
         }
 
-        $header = $this->normalizarCabecalho($headerRaw);
+        $indice = $this->indiceCabecalho($matriz);
+        $header = $this->cabecalhoCanonico($matriz[$indice]);
+        if ($header === [] || implode('', $header) === '') {
+            throw new \RuntimeException('Arquivo sem cabeçalho.');
+        }
+
         $rows = [];
         $skipped = 0;
 
-        while (($row = fgetcsv($handle)) !== false) {
+        foreach (array_slice($matriz, $indice + 1) as $row) {
             if ($this->linhaVazia($row)) {
                 continue;
             }
@@ -80,8 +111,6 @@ class PlanilhaGestanteReader
 
             $rows[] = $combinada;
         }
-
-        fclose($handle);
 
         return ['header' => $header, 'rows' => $rows, 'skipped' => $skipped];
     }
@@ -104,7 +133,8 @@ class PlanilhaGestanteReader
             throw new \RuntimeException('Planilha vazia.');
         }
 
-        $header = $this->normalizarCabecalho(array_shift($matriz) ?? []);
+        $indice = $this->indiceCabecalho($matriz);
+        $header = $this->cabecalhoCanonico($matriz[$indice]);
         if ($header === [] || implode('', $header) === '') {
             throw new \RuntimeException('Arquivo sem cabeçalho.');
         }
@@ -112,7 +142,7 @@ class PlanilhaGestanteReader
         $cols = count($header);
         $rows = [];
 
-        foreach ($matriz as $row) {
+        foreach (array_slice($matriz, $indice + 1) as $row) {
             $valores = array_map(fn ($c) => $this->cellToString($c), array_slice($row, 0, $cols));
             if ($this->linhaVazia($valores)) {
                 continue;
@@ -132,17 +162,48 @@ class PlanilhaGestanteReader
     }
 
     /**
+     * @param  list<list<mixed>>  $matriz
+     */
+    private function indiceCabecalho(array $matriz): int
+    {
+        foreach ($matriz as $indice => $row) {
+            if (in_array('id_gestante', $this->cabecalhoCanonico($row), true)) {
+                return $indice;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
      * @param  list<mixed>  $header
      * @return list<string>
      */
-    private function normalizarCabecalho(array $header): array
+    private function cabecalhoCanonico(array $header): array
     {
-        return array_map(function ($h) {
-            $v = $this->cellToString($h);
-            $v = preg_replace('/^\xEF\xBB\xBF/', '', $v) ?? $v;
+        $colunas = [];
+        foreach ($header as $celula) {
+            $slug = $this->slugCabecalho($this->cellToString($celula));
+            $colunas[] = $slug === '' ? '' : (self::ALIASES[$slug] ?? $slug);
+        }
 
-            return trim($v);
-        }, $header);
+        while ($colunas !== [] && end($colunas) === '') {
+            array_pop($colunas);
+        }
+
+        return $colunas;
+    }
+
+    private function slugCabecalho(string $texto): string
+    {
+        $texto = preg_replace('/^\xEF\xBB\xBF/', '', $texto) ?? $texto;
+        $texto = str_replace(["\r\n", "\r"], "\n", $texto);
+        $texto = preg_replace('/\n\s*0\s*=.*$/s', '', $texto) ?? $texto;
+        $texto = str_replace(['º', 'ª', '°'], '', $texto);
+        $texto = strtolower(Str::ascii($texto));
+        $texto = preg_replace('/[^a-z0-9]+/', '_', $texto) ?? $texto;
+
+        return trim($texto, '_');
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Gestante;
 use App\Models\GestanteWhatsapp;
 use App\Models\User;
+use App\Services\GestanteWhatsappMessageRecorder;
 use App\Services\WhatsAppService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -12,11 +13,12 @@ use Illuminate\View\View;
 
 class WhatsappCanalController extends Controller
 {
-    public function index(WhatsAppService $whatsApp): View
+    public function index(WhatsAppService $whatsApp, GestanteWhatsappMessageRecorder $recorder): View
     {
         $this->authorize(User::ABILITY_WHATSAPP);
 
         $status = $this->statusSessao($whatsApp);
+        $recorder->vincularMensagensOrfas();
         $gestantes = $this->gestantesParaChat();
         $selecionada = $gestantes->first();
 
