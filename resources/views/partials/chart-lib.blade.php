@@ -229,14 +229,19 @@
             }
             const total = values.reduce(function (soma, valor) { return soma + Number(valor); }, 0) || 1;
             const maior = Math.max.apply(null, values.map(Number).concat([1]));
-            const casos = canvasId.indexOf('casos_ccf') !== -1;
+            const casos = canvasId.indexOf('casos_ccf') !== -1 || canvasId.indexOf('desfecho_fatores') !== -1;
             const cor = casos ? 'rgba(183, 28, 28, 0.82)' : 'rgba(127, 12, 26, 0.78)';
             const eixoValor = {
                 beginAtZero: true,
                 suggestedMax: Math.ceil(maior * 1.18),
                 grid: { color: this.palette.grid },
                 ticks: { precision: 0, maxTicksLimit: 6 },
-                title: { display: true, text: unidade === 'cardiopatias' ? 'Cardiopatias' : 'Registros' },
+                title: {
+                    display: true,
+                    text: unidade === 'gestantes'
+                        ? 'Gestantes'
+                        : (unidade === 'cardiopatias' ? 'Cardiopatias' : 'Registros'),
+                },
             };
             const eixoRotulo = {
                 grid: { display: false },

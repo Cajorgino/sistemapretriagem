@@ -49,6 +49,13 @@
     $gdVariaveis = array_values(array_filter(is_array($gd) ? $gd : [], $ehGraficoVariavel));
     $descOk = count($gdVariaveis) > 0 || count($gcVariaveis) > 0;
     $gruposVariaveis = [
+        'desfecho' => [
+            'id' => 'desfecho',
+            'titulo' => 'Desfecho de cardiopatia congênita',
+            'texto' => 'Quantas gestantes tiveram cardiopatia congênita confirmada e quais fatores aparecem nesse grupo.',
+            'graficos' => [],
+            'figuras' => [],
+        ],
         'sociodemograficas' => [
             'id' => 'socio',
             'titulo' => 'Características sociodemográficas',
@@ -79,6 +86,8 @@
         ],
     ];
     $mapaCanvas = [
+        'desfecho_gestantes' => 'desfecho',
+        'desfecho_fatores' => 'desfecho',
         'etnia' => 'sociodemograficas',
         'paridade' => 'sociodemograficas',
         'idade_crianca' => 'antropometricas',
@@ -115,6 +124,16 @@
 
 <style>
     .dash { max-width: 1120px; margin: 0 auto; }
+    @media (min-width: 1600px) {
+        .dash { max-width: none; }
+        .dash-snapshot { gap: 18px; }
+        .dash-hero h1 { font-size: 2.35rem; }
+        .dash-snap { padding: 20px 22px; }
+        .dash-snap-value { font-size: 1.85rem; }
+    }
+    @media (max-width: 959px) {
+        .dash-individual-detalhe { position: static; }
+    }
 
     .dash-perfil-fixo {
         margin: 0 0 22px;
@@ -625,14 +644,16 @@
             document.addEventListener('DOMContentLoaded', function () {
                 const cohort = @json($gcVariaveis);
                 const p = window.GestRiskCharts.palette;
-                const particoes = ['etnia', 'paridade', 'idade_crianca', 'imc', 'prevalencia'];
+                const particoes = ['etnia', 'paridade', 'idade_crianca', 'imc', 'prevalencia', 'desfecho_gestantes'];
                 GestRiskCharts.ready(function () {
                     cohort.forEach(function (g) {
                         const id = 'chart-cohort-' + g.slug;
                         if (g.tipo === 'doughnut') {
                             GestRiskCharts.cohortDoughnut(id, g.labels, g.valores, [p.riskHigh, '#f0d5d5']);
                         } else {
-                            const unidade = g.slug === 'casos_ccf' ? 'cardiopatias' : 'registros';
+                            const unidade = g.slug === 'desfecho_fatores'
+                                ? 'gestantes'
+                                : (g.slug === 'casos_ccf' ? 'cardiopatias' : 'registros');
                             GestRiskCharts.cohortBar(id, g.labels, g.valores, unidade, particoes.indexOf(g.slug) !== -1);
                         }
                     });

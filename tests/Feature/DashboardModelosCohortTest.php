@@ -131,6 +131,8 @@ test('dashboard lista o catalogo de experimentos com metricas reais', function (
         ->assertSee('CatBoost')
         ->assertSee('Regressão Logística')
         ->assertSee('SVM')
+        ->assertSee('Soma as variáveis clínicas com um peso para cada uma.')
+        ->assertSee('Procura a fronteira que separa as fichas com e sem cardiopatia registrada.')
         ->assertSee('class_weight')
         ->assertSee(number_format(0.3595 * 100, 1, ',', '.').'%')
         ->assertSee('Modelo em produção')
@@ -166,9 +168,49 @@ test('dashboard desenha graficos do cohort a partir do cadastro local', function
         ->get(route('dashboard'))
         ->assertOk()
         ->assertSee('Cadastro local')
-        ->assertSee('Prevalência de CCF')
+        ->assertSee('Gestantes com desfecho de cardiopatia congênita')
+        ->assertSee('chart-cohort-desfecho_gestantes')
+        ->assertSee('Perfil das gestantes com cardiopatia congênita')
+        ->assertSee('chart-cohort-desfecho_fatores')
+        ->assertSee('Prevalência de CCF nas fichas')
         ->assertSee('chart-cohort-prevalencia')
         ->assertDontSee('Gráficos descritivos indisponíveis.');
+});
+
+test('dashboard destaca gestantes com desfecho de cardiopatia congênita', function () {
+    Queue::fake();
+    $importer = app(DatasetGestanteImporter::class);
+    $importer->upsert([
+        'id_gestante' => 'GEST-CCF-1',
+        'idade_materna' => 33,
+        'etnia' => 'Parda',
+        'imc_pre_gestacional' => 28,
+        'idade_gestacional' => 24,
+        'diabetes_gestacional' => 1,
+        'cardiopatia_congenita' => 1,
+    ]);
+    $importer->upsert([
+        'id_gestante' => 'GEST-CCF-2',
+        'idade_materna' => 29,
+        'etnia' => 'Branca',
+        'imc_pre_gestacional' => 22,
+        'idade_gestacional' => 20,
+        'cardiopatia_congenita' => 0,
+    ]);
+
+    $this->actingAs(medicoDashboard())
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSeeInOrder([
+            'Desfecho CCF',
+            'Desfecho de cardiopatia congênita',
+            'Visão geral',
+            'Panorama da base',
+        ])
+        ->assertSee('Gestantes com CCF')
+        ->assertSee('1 com desfecho')
+        ->assertSee('Cada gestante entra uma vez.')
+        ->assertSee('Só entram gestantes com cardiopatia confirmada.');
 });
 
 test('dashboard descreve todas as variaveis da ficha com contagem e percentual', function () {

@@ -182,6 +182,12 @@
             max-width: calc(100vw - 24px);
             border-radius: 22px;
         }
+        .field-input { font-size: 16px; }
+    }
+
+    @media (min-width: 1600px) {
+        .login-card { max-width: 560px; padding: 64px 56px 52px; }
+        .login-subtitle { font-size: 16px; }
     }
 </style>
 

@@ -7,6 +7,8 @@ use App\Models\AnaliseHistorico;
 use App\Models\Consulta;
 use App\Models\Gestante;
 use App\Services\GestanteAtendimentoService;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ConsultaObserver
 {
@@ -60,8 +62,16 @@ class ConsultaObserver
 
     private function dispatchAnalise(int $gestanteId, ?int $consultaId, string $evento): void
     {
-        if (filter_var(env('GESTRISK_ANALISE_SYNC', false), FILTER_VALIDATE_BOOL)) {
-            ExecutarAnaliseGestante::dispatchSync($gestanteId, $consultaId, $evento);
+        if (ExecutarAnaliseGestante::deveConcluirNaHora()) {
+            try {
+                ExecutarAnaliseGestante::dispatchSync($gestanteId, $consultaId, $evento);
+            } catch (Throwable $e) {
+                Log::warning('ConsultaObserver: análise não concluída no cadastro.', [
+                    'gestante_id' => $gestanteId,
+                    'consulta_id' => $consultaId,
+                    'mensagem' => $e->getMessage(),
+                ]);
+            }
 
             return;
         }

@@ -2,21 +2,32 @@
     use App\Services\DashboardAnaliseService;
 
     $rotulosGrupo = [
+        'desfecho' => 'Desfecho CCF',
         'socio' => 'Sociodemográficas',
         'antropo' => 'Antropométricas',
         'clinicas' => 'Clínicas',
         'obstetricas' => 'Obstétricas',
     ];
-    $secoesNav = [
+    $grupoDesfecho = $gruposVariaveis['desfecho'] ?? null;
+    $temDesfecho = is_array($grupoDesfecho)
+        && (
+            ($grupoDesfecho['graficos'] ?? []) !== []
+            || ($grupoDesfecho['figuras'] ?? []) !== []
+        );
+    $secoesNav = [];
+    if ($temDesfecho) {
+        $secoesNav[] = ['href' => '#desfecho', 'label' => 'Desfecho CCF'];
+    }
+    $secoesNav = array_merge($secoesNav, [
         ['href' => '#indicadores', 'label' => 'Visão geral'],
         ['href' => '#cobertura', 'label' => 'Cobertura'],
         ['href' => '#graficos', 'label' => 'Variáveis'],
-    ];
+    ]);
     foreach ($gruposVariaveis as $chaveNav => $grupo) {
         $temGrupo = ($grupo['graficos'] ?? []) !== []
             || ($grupo['figuras'] ?? []) !== []
             || is_array($leituraDescritiva['grupos'][$chaveNav] ?? null);
-        if (! $temGrupo) {
+        if (! $temGrupo || ($grupo['id'] ?? '') === 'desfecho') {
             continue;
         }
         $secoesNav[] = [
@@ -29,14 +40,16 @@
     }
     $secoesNav[] = ['href' => '#analises', 'label' => 'Modelos'];
     $comoLer = [
-        'prevalencia' => 'CCF é a cardiopatia congênita confirmada na ficha. O anel compara quem teve o desfecho com o restante da planilha.',
+        'desfecho_gestantes' => 'Cada gestante entra uma vez. O anel mostra quem teve cardiopatia congênita confirmada em alguma consulta e quem não teve.',
+        'desfecho_fatores' => 'Só entram gestantes com cardiopatia confirmada. Cada barra conta quantas delas também tinham aquele fator. A mesma gestante pode aparecer em mais de uma barra.',
+        'prevalencia' => 'CCF é a cardiopatia congênita confirmada na ficha. O anel compara as fichas com desfecho com o restante da planilha.',
         'etnia' => 'Cada barra é um grupo de etnia. A mais longa é o grupo com mais fichas. A soma das barras é o total da base.',
         'paridade' => 'Quantos filhos a gestante já tinha. Primigesta é quem ainda não tinha filho. A soma das barras é o total da base.',
         'idade_crianca' => 'Meses de vida da criança quando a ficha foi registrada. Não é a idade da mãe nem a idade da gravidez.',
         'imc' => 'Faixa de IMC na gestação, do jeito que veio na planilha: normal, acima de 24,9 ou abaixo de 18,5.',
         'fatores_risco' => 'Quantas fichas marcaram cada condição. A mesma gestante pode aparecer em mais de uma barra, então as barras não se somam.',
         'obstetricos' => 'Quantas fichas têm cada marcador da gestação. A mesma ficha pode entrar em mais de um marcador.',
-        'casos_ccf' => 'Entre as cardiopatias confirmadas, quantas também tinham aquele fator. Um caso pode contar em mais de uma barra.',
+        'casos_ccf' => 'Entre as cardiopatias confirmadas nas fichas, quantas também tinham aquele fator. Um caso pode contar em mais de uma barra.',
     ];
 @endphp
 
@@ -62,6 +75,68 @@
         </nav>
 </div>
 
+    @if ($temDesfecho)
+        @php
+            $graficosDesfecho = $grupoDesfecho['graficos'] ?? [];
+            $figurasDesfecho = $grupoDesfecho['figuras'] ?? [];
+        @endphp
+        <section class="dash-area" id="desfecho">
+            <div class="dash-area-head">
+                <p class="dash-area-kicker">Prioridade da apresentação</p>
+                <h2>{{ $grupoDesfecho['titulo'] }}</h2>
+                @if (! empty($grupoDesfecho['texto']))
+                    <p>{{ $grupoDesfecho['texto'] }}</p>
+                @endif
+            </div>
+            @if ($graficosDesfecho !== [])
+                <div class="dash-charts">
+                    @foreach ($graficosDesfecho as $grafico)
+                        @php
+                            $slugGrafico = (string) ($grafico['slug'] ?? '');
+                            $nRotulos = count($grafico['labels'] ?? []);
+                            $largo = $nRotulos > 5 || in_array($slugGrafico, ['desfecho_fatores', 'desfecho_gestantes'], true);
+                            $somaGrafico = array_sum($grafico['valores'] ?? []);
+                            $primeiroValor = (int) ($grafico['valores'][0] ?? 0);
+                            $unidadeAnel = $slugGrafico === 'desfecho_gestantes' ? 'gestantes' : 'fichas';
+                        @endphp
+                        <div class="dash-chart {{ $largo ? 'dash-chart--wide' : '' }}">
+                            <h3>{{ $grafico['titulo'] }}</h3>
+                            @if (! empty($comoLer[$slugGrafico]))
+                                <p class="dash-chart-note"><strong>Como ler</strong>{{ $comoLer[$slugGrafico] }}</p>
+                            @endif
+                            @if ($slugGrafico === 'desfecho_gestantes')
+                                <div class="dash-prevalencia">
+                                    <div class="dash-chart-wrap"><canvas id="chart-cohort-{{ $slugGrafico }}"></canvas></div>
+                                    <p class="dash-prevalencia-stat">
+                                        {{ number_format($primeiroValor, 0, ',', '.') }}
+                                        <span>de {{ number_format($somaGrafico, 0, ',', '.') }} {{ $unidadeAnel }}
+                                            ({{ $somaGrafico > 0 ? number_format(100 * $primeiroValor / $somaGrafico, 1, ',', '.') : '0,0' }}%).</span>
+                                    </p>
+                                </div>
+                            @else
+                                <div class="dash-chart-wrap"><canvas id="chart-cohort-{{ $slugGrafico }}"></canvas></div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+            @if ($figurasDesfecho !== [])
+                <div class="dash-desc-grid" style="{{ $graficosDesfecho !== [] ? 'margin-top: 14px;' : '' }}">
+                    @foreach ($figurasDesfecho as $figura)
+                        <article class="dash-desc-card">
+                            <h4>{{ $figura['titulo'] ?? DashboardAnaliseService::tituloGraficoDescritivo((string) ($figura['slug'] ?? '')) }}</h4>
+                            <img
+                                src="{{ route('dashboard.graficos.descritivo', $figura['slug']) }}"
+                                alt="{{ $figura['titulo'] ?? $figura['slug'] }}"
+                                loading="lazy"
+                            >
+                        </article>
+                    @endforeach
+                </div>
+            @endif
+        </section>
+    @endif
+
     <section class="dash-area" id="indicadores">
         <div class="dash-area-head">
             <p class="dash-area-kicker">Visão geral</p>
@@ -81,9 +156,9 @@
                 <div class="dash-snap-hint">{{ $gestantesComConsulta }} com consulta ({{ $taxaGestantesComConsulta }}%)</div>
             </div>
             <div class="dash-snap">
-                <div class="dash-snap-label">Cardiopatia congênita nas consultas</div>
-                <div class="dash-snap-value dash-snap-value--accent">{{ $totalConsultas > 0 ? number_format($pctChdNasConsultas, 1, ',', '.').'%' : 'Não informado' }}</div>
-                <div class="dash-snap-hint">{{ number_format($chdConfirmadas, 0, ',', '.') }} confirmadas</div>
+                <div class="dash-snap-label">Gestantes com CCF</div>
+                <div class="dash-snap-value dash-snap-value--accent">{{ $totalGestantes > 0 ? number_format($pctGestantesComChd, 1, ',', '.').'%' : 'Não informado' }}</div>
+                <div class="dash-snap-hint">{{ number_format($gestantesComChd, 0, ',', '.') }} com desfecho · {{ number_format($chdConfirmadas, 0, ',', '.') }} fichas</div>
             </div>
             <div class="dash-snap">
                 <div class="dash-snap-label">Meses de vida</div>
@@ -168,10 +243,12 @@
         @else
             @foreach ($gruposVariaveis as $chaveGrupo => $grupo)
                 @php
+                    // Desfecho CCF já abre o dashboard, fora desta lista.
+                    if (($grupo['id'] ?? '') === 'desfecho') {
+                        continue;
+                    }
                     $graficosGrupo = $grupo['graficos'] ?? [];
                     $figurasGrupo = $grupo['figuras'] ?? [];
-                @endphp
-                @php
                     $leituraGrupo = $leituraDescritiva['grupos'][$chaveGrupo] ?? null;
                 @endphp
                 @if ($graficosGrupo !== [] || $figurasGrupo !== [] || is_array($leituraGrupo))
@@ -193,21 +270,22 @@
                                     @php
                                         $slugGrafico = (string) ($grafico['slug'] ?? '');
                                         $nRotulos = count($grafico['labels'] ?? []);
-                                        $largo = $nRotulos > 5 || in_array($slugGrafico, ['prevalencia', 'obstetricos'], true);
+                                        $largo = $nRotulos > 5 || in_array($slugGrafico, ['prevalencia', 'obstetricos', 'desfecho_fatores', 'desfecho_gestantes'], true);
                                         $somaGrafico = array_sum($grafico['valores'] ?? []);
                                         $primeiroValor = (int) ($grafico['valores'][0] ?? 0);
+                                        $unidadeAnel = $slugGrafico === 'desfecho_gestantes' ? 'gestantes' : 'fichas';
                                     @endphp
                                     <div class="dash-chart {{ $largo ? 'dash-chart--wide' : '' }}">
                                         <h3>{{ $grafico['titulo'] }}</h3>
                                         @if (! empty($comoLer[$slugGrafico]))
                                             <p class="dash-chart-note"><strong>Como ler</strong>{{ $comoLer[$slugGrafico] }}</p>
                                         @endif
-                                        @if ($slugGrafico === 'prevalencia')
+                                        @if (in_array($slugGrafico, ['prevalencia', 'desfecho_gestantes'], true))
                                             <div class="dash-prevalencia">
                                                 <div class="dash-chart-wrap"><canvas id="chart-cohort-{{ $slugGrafico }}"></canvas></div>
                                                 <p class="dash-prevalencia-stat">
                                                     {{ number_format($primeiroValor, 0, ',', '.') }}
-                                                    <span>de {{ number_format($somaGrafico, 0, ',', '.') }} fichas
+                                                    <span>de {{ number_format($somaGrafico, 0, ',', '.') }} {{ $unidadeAnel }}
                                                         ({{ $somaGrafico > 0 ? number_format(100 * $primeiroValor / $somaGrafico, 1, ',', '.') : '0,0' }}%).</span>
                                                 </p>
                                             </div>
@@ -356,6 +434,31 @@
                 </p>
             </div>
         @else
+            @php
+                $nomesCatalogo = collect($mm['modelos'])->pluck('modelo')->map(fn ($nome) => (string) $nome);
+            @endphp
+            @if ($nomesCatalogo->contains('Logistic Regression') || $nomesCatalogo->contains('SVM'))
+                <div class="dash-model-hi" style="margin-bottom: 16px;">
+                    @if ($nomesCatalogo->contains('Logistic Regression'))
+                        <article>
+                            <div class="dash-model-hi-label">Explicação</div>
+                            <div class="dash-model-hi-name">Regressão logística</div>
+                            <p class="dash-footnote" style="margin: 8px 0 0;">
+                                Soma as variáveis clínicas com um peso para cada uma. O sinal do peso mostra se a variável aumenta ou reduz o escore, e essa leitura explica a ficha.
+                            </p>
+                        </article>
+                    @endif
+                    @if ($nomesCatalogo->contains('SVM'))
+                        <article>
+                            <div class="dash-model-hi-label">Explicação</div>
+                            <div class="dash-model-hi-name">SVM</div>
+                            <p class="dash-footnote" style="margin: 8px 0 0;">
+                                Procura a fronteira que separa as fichas com e sem cardiopatia registrada. Na planilha foi o modelo com maior AUC média, e essa fronteira classifica a ficha.
+                            </p>
+                        </article>
+                    @endif
+                </div>
+            @endif
             @if ($mmDestaques !== [])
                 <div class="dash-model-hi">
                     @foreach ($destaqueLabels as $key => $label)

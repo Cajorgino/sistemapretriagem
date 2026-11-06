@@ -73,7 +73,7 @@
             z-index: 0;
         }
 
-        body > header,
+        /* Conteúdo abaixo do overlay; o header fica acima para o menu mobile funcionar */
         body > main,
         body > footer.app-site-footer {
             position: relative;
@@ -331,12 +331,12 @@
         .btn-mobile-menu[aria-expanded="true"] .icon-open { display: none; }
         .btn-mobile-menu[aria-expanded="true"] .icon-close { display: block; }
 
-        /* Overlay do menu mobile (fora do header, cobre o conteúdo) */
+        /* Overlay do menu mobile: abaixo do header (100), acima do conteúdo (1) */
         .nav-mobile-overlay {
             display: none;
             position: fixed;
             inset: 0;
-            z-index: 95;
+            z-index: 90;
             background: rgba(28, 26, 26, 0.42);
             backdrop-filter: blur(2px);
             -webkit-backdrop-filter: blur(2px);
@@ -399,7 +399,12 @@
 
         body.nav-mobile-open {
             overflow: hidden;
+        }
+
+        body.nav-mobile-open > main,
+        body.nav-mobile-open > footer.app-site-footer {
             touch-action: none;
+            pointer-events: none;
         }
 
         /* ── MAIN ── */
@@ -461,8 +466,13 @@
             flex-shrink: 0;
         }
 
-        /* Desktop largo: legenda inteira em uma linha */
+        /* TV e monitores largos: o miolo acompanha a tela, sem esticar até a borda */
         @media (min-width: 1600px) {
+            .header-inner,
+            main {
+                max-width: 1520px;
+            }
+            .page-stack { max-width: none; }
             .nav-desktop { gap: 4px; }
             .nav-desktop .nav-link {
                 padding: 8px 12px;
@@ -473,8 +483,38 @@
                 padding: 8px 14px;
                 font-size: 14px;
             }
-            .header-logo { flex: 0 0 auto; max-width: none; }
+            .header-logo { flex: 0 0 auto; max-width: 420px; }
             .header-logo-tagline { font-size: 10px; letter-spacing: 0.05em; }
+        }
+
+        @media (min-width: 1920px) {
+            .header-inner,
+            main {
+                max-width: 1760px;
+            }
+            main {
+                padding-top: 40px;
+                padding-bottom: 40px;
+            }
+            .nav-desktop .nav-link,
+            .nav-desktop .btn-logout {
+                font-size: 16px;
+                padding: 10px 14px;
+            }
+            .page-title { font-size: 2.35rem; }
+            .main-card { padding: 36px 40px; }
+            table.data-table thead th,
+            table.data-table tbody td {
+                padding: 16px 18px;
+                font-size: 16px;
+            }
+            table.data-table thead th { font-size: 12px; }
+        }
+
+        @media (min-width: 2560px) {
+            .header-inner,
+            main { max-width: 2080px; }
+            .page-title { font-size: 2.6rem; }
         }
 
         /* Notebook: menu compacto e legenda inteira sem quebrar */
@@ -535,6 +575,10 @@
                 font-size: 8px;
                 letter-spacing: 0.02em;
             }
+        }
+
+        @media (max-width: 360px) {
+            .header-logo-tagline { display: none; }
         }
 
         /* ── COMPONENTES GLOBAIS DE UI ── */
@@ -1066,6 +1110,9 @@
 
         @media (max-width: 640px) {
             .form-section { padding: 16px 14px; border-radius: 14px; }
+            .form-input,
+            .form-select,
+            .form-textarea { font-size: 16px; }
         }
 
         .form-section--wide {
@@ -1102,6 +1149,8 @@
         .form-select,
         .form-textarea {
             width: 100%;
+            max-width: 100%;
+            min-width: 0;
             padding: 12px 14px;
             border-radius: 12px;
             border: 1px solid var(--border);
@@ -1126,9 +1175,15 @@
             grid-template-columns: 1fr;
         }
 
-        @media (min-width: 520px) {
-            .form-field-grid--2 { grid-template-columns: repeat(2, 1fr); }
-            .form-field-grid--3 { grid-template-columns: repeat(3, 1fr); }
+        .form-field-grid > * { min-width: 0; }
+
+        @media (min-width: 640px) {
+            .form-field-grid--2,
+            .form-field-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (min-width: 960px) {
+            .form-field-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
 
         .form-req { color: var(--risk-high); font-weight: 700; }

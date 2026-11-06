@@ -48,6 +48,19 @@ class ExecutarAnaliseGestante implements ShouldBeUnique, ShouldQueue
         return 60;
     }
 
+    /**
+     * No cadastro pela tela, a análise e o laudo terminam antes do redirecionamento.
+     * Fila e testes continuam assíncronos.
+     */
+    public static function deveConcluirNaHora(): bool
+    {
+        if (config('services.interpretacao.sync_on_save') === true) {
+            return true;
+        }
+
+        return ! app()->runningInConsole();
+    }
+
     public function handle(PythonApiService $api, PythonPredictPayloadMapper $mapper): void
     {
         $gestante = Gestante::find($this->gestanteId);
@@ -85,6 +98,12 @@ class ExecutarAnaliseGestante implements ShouldBeUnique, ShouldQueue
         }
 
         if (! config('services.interpretacao.enabled')) {
+            return;
+        }
+
+        if (self::deveConcluirNaHora()) {
+            InterpretarGestanteJob::dispatchSync($analise->id);
+
             return;
         }
 

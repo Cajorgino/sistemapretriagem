@@ -39,6 +39,12 @@ class DashboardController extends Controller
         $totalConsultas = Consulta::count();
         $chdConfirmadas = Consulta::where('chd_confirmada', true)->count();
         $chdNegativas = $totalConsultas > 0 ? $totalConsultas - $chdConfirmadas : 0;
+        $gestantesComChd = Gestante::query()
+            ->whereHas('consultas', static fn ($q) => $q->where('chd_confirmada', true))
+            ->count();
+        $pctGestantesComChd = $totalGestantes > 0
+            ? round(100 * $gestantesComChd / $totalGestantes, 1)
+            : 0.0;
 
         $gestantesComConsulta = Gestante::has('consultas')->count();
         $taxaGestantesComConsulta = $totalGestantes > 0
@@ -112,6 +118,8 @@ class DashboardController extends Controller
             'totalConsultas' => $totalConsultas,
             'chdConfirmadas' => $chdConfirmadas,
             'chdNegativas' => $chdNegativas,
+            'gestantesComChd' => $gestantesComChd,
+            'pctGestantesComChd' => $pctGestantesComChd,
             'gestantesComConsulta' => $gestantesComConsulta,
             'taxaGestantesComConsulta' => $taxaGestantesComConsulta,
             'pctChdNasConsultas' => $pctChdNasConsultas,

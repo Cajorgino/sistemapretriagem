@@ -200,7 +200,7 @@
                         @if ($podeAgendar)
                         <td class="td-actions">
                             @if ($gestante)
-                                <form method="POST" action="{{ route('agenda.store') }}" style="display:grid; gap:6px; min-width: 220px;">
+                                <form method="POST" action="{{ route('agenda.store') }}" style="display:grid; gap:6px; min-width: min(220px, 100%);">
                                     @csrf
                                     <input type="hidden" name="gestante_id" value="{{ $gestante->id }}">
                                     <input type="hidden" name="tipo" value="{{ $item['tipo'] }}">

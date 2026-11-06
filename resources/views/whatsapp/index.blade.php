@@ -66,9 +66,13 @@
             .wa-inbox { grid-template-columns: 1fr; }
             .wa-people-card {
                 height: auto;
-                max-height: 280px;
+                max-height: 240px;
                 min-height: 0;
             }
+        }
+        @media (min-width: 1600px) {
+            .wa-inbox { grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); }
+            .wa-people-card { height: min(78vh, 820px); }
         }
     </style>
 

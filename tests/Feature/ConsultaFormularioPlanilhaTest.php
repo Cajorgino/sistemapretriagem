@@ -4,6 +4,7 @@ use App\Models\Consulta;
 use App\Models\Gestante;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -54,4 +55,73 @@ test('consulta nova grava sem os campos antigos obrigatorios do formulario', fun
         ->and($consulta->uso_medicamentos)->toBeFalse()
         ->and($consulta->tabagismo)->toBeFalse()
         ->and($consulta->alcoolismo)->toBeFalse();
+});
+
+test('cadastro da consulta ja exibe o laudo na ficha', function () {
+    config([
+        'services.python_api.url' => 'http://ml.test',
+        'services.interpretacao.enabled' => true,
+        'services.interpretacao.sync_on_save' => true,
+    ]);
+
+    Http::fake([
+        'http://ml.test/predict' => Http::response([
+            'risk' => 'Baixo',
+            'probability' => 0.12,
+            'classificacao_risco' => 'Baixo',
+            'probabilidade_risco' => 0.12,
+            'class' => 0,
+            'shap' => [],
+            'execution_time_ms' => 3,
+            'fonte' => 'planilha',
+        ]),
+        'http://ml.test/interpretar/gestante' => Http::response([
+            'resumo_medico' => 'Laudo pronto no cadastro da consulta.',
+            'resumo_gestante' => 'A ficha foi registrada.',
+            'fatores_explicados' => [],
+            'recomendacoes' => [],
+            'deltas' => [],
+            'mock' => true,
+        ]),
+    ]);
+
+    $medico = usuarioComPerfil(User::ROLE_MEDICO, 'CRM-LAUDO-AGORA');
+    $gestante = Gestante::query()->create([
+        'nome' => 'Helena Laudo',
+        'data_nascimento' => '1994-03-02',
+        'cpf' => '15350946056',
+        'telefone' => '21933334444',
+    ]);
+
+    $this->actingAs($medico)
+        ->post(route('consultas.store', $gestante->id), [
+            'data_consulta' => '2026-11-06',
+            'idade_crianca_meses' => 6,
+            'etnia' => 'Branca',
+            'paridade' => 0,
+            'imc_gestacional_categoria' => 0,
+            'abortamentos_previos' => 0,
+            'tipo_gestacao' => 'única',
+            'polidramnio_oligoidramnio' => '',
+            'prematuridade' => 0,
+            'historico_familiar_chd' => 0,
+            'diabetes_gestacional' => 0,
+            'diabetes_pre_gestacional' => 0,
+            'lupus_eritomatoso_sistemico' => 0,
+            'sindrome_sjogren' => 0,
+            'doencas_tireoidianas' => 0,
+            'hipertensao_cronica' => 0,
+            'hipertensao_pre_eclampsia' => 0,
+            'eclampsia' => 0,
+            'drogas_ilicitas' => 0,
+            'licitas_teratogenicas' => 0,
+            'infeccao_materna_bacteriana' => 0,
+            'chd_confirmada' => 0,
+        ])
+        ->assertRedirect(route('gestantes.show', $gestante->id));
+
+    $this->get(route('gestantes.show', $gestante->id))
+        ->assertOk()
+        ->assertSee('Laudo clínico')
+        ->assertSee('Laudo pronto no cadastro da consulta.');
 });

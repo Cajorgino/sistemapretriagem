@@ -222,6 +222,10 @@
 
 <style>
     .fila-filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .fila-filtros .form-input { width: auto; max-width: 100%; }
+    @media (max-width: 640px) {
+        .fila-filtros, .fila-filtros .form-input { width: 100%; min-width: 0; }
+    }
     .fila-alertas { display: grid; gap: 10px; }
     .fila-alerta {
         display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between;

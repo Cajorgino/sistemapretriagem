@@ -292,10 +292,21 @@ class DashboardAnaliseService
         }
 
         $chdSim = (int) Consulta::query()->where('chd_confirmada', true)->count();
+        $gestantesComDesfecho = (int) Gestante::query()
+            ->whereHas('consultas', static fn ($q) => $q->where('chd_confirmada', true))
+            ->count();
+        $totalGestantes = (int) Gestante::query()->count();
         $charts = [
             [
+                'slug' => 'desfecho_gestantes',
+                'titulo' => 'Gestantes com desfecho de cardiopatia congênita',
+                'tipo' => 'doughnut',
+                'labels' => ['Com cardiopatia congênita confirmada', 'Sem cardiopatia congênita confirmada'],
+                'valores' => [$gestantesComDesfecho, max(0, $totalGestantes - $gestantesComDesfecho)],
+            ],
+            [
                 'slug' => 'prevalencia',
-                'titulo' => 'Prevalência de CCF',
+                'titulo' => 'Prevalência de CCF nas fichas',
                 'tipo' => 'doughnut',
                 'labels' => ['Cardiopatia congênita confirmada', 'Sem cardiopatia congênita confirmada'],
                 'valores' => [$chdSim, max(0, $totalConsultas - $chdSim)],
@@ -383,7 +394,7 @@ class DashboardAnaliseService
             'Polidrâmnio' => static fn ($q) => $q->where('polidramnio_oligoidramnio', 'polidramnio'),
             'Oligodrâmnio' => static fn ($q) => $q->where('polidramnio_oligoidramnio', 'oligodramnio'),
         ]);
-        $casos = $this->serieFatores(array_merge(
+        $fatoresDesfecho = array_merge(
             [
                 'Prematuridade' => static fn ($q) => $q->where('prematuridade', true),
                 'Gemelar' => static fn ($q) => $q->where('tipo_gestacao', 'gemelar'),
@@ -405,7 +416,11 @@ class DashboardAnaliseService
                 'Lícitas teratogênicas' => static fn ($q) => $q->where('licitas_teratogenicas', true),
                 'Infecção bacteriana' => static fn ($q) => $q->where('infeccao_materna_bacteriana', true),
             ],
-        ), true);
+        );
+        $casos = $this->serieFatores($fatoresDesfecho, true);
+        $perfilDesfecho = $gestantesComDesfecho > 0
+            ? $this->serieFatoresGestantes($fatoresDesfecho, true)
+            : [];
 
         if ($frequenciaClinica !== []) {
             $charts[] = $this->graficoBarras('fatores_risco', 'Frequência das comorbidades', $frequenciaClinica);
@@ -413,11 +428,43 @@ class DashboardAnaliseService
         if ($frequenciaObstetrica !== []) {
             $charts[] = $this->graficoBarras('obstetricos', 'Marcadores obstétricos', $frequenciaObstetrica);
         }
+        if ($perfilDesfecho !== []) {
+            $charts[] = $this->graficoBarras(
+                'desfecho_fatores',
+                'Perfil das gestantes com cardiopatia congênita',
+                $perfilDesfecho,
+            );
+        }
         if ($casos !== []) {
             $charts[] = $this->graficoBarras('casos_ccf', 'Cardiopatias segundo o fator', $casos);
         }
 
         return $charts;
+    }
+
+    /**
+     * Conta gestantes distintas (não fichas) que batem com o filtro.
+     *
+     * @param  array<string, callable(\Illuminate\Database\Eloquent\Builder): void>  $fatores
+     * @return array<string, int>
+     */
+    private function serieFatoresGestantes(array $fatores, bool $somenteCardiopatia = false): array
+    {
+        $serie = [];
+        foreach ($fatores as $rotulo => $filtrar) {
+            $consulta = Consulta::query();
+            $filtrar($consulta);
+            if ($somenteCardiopatia) {
+                $consulta->where('chd_confirmada', true);
+            }
+            $total = (int) $consulta->distinct()->count('gestante_id');
+            if ($total > 0) {
+                $serie[$rotulo] = $total;
+            }
+        }
+        arsort($serie);
+
+        return $serie;
     }
 
     /**

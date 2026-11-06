@@ -37,7 +37,7 @@
             <form method="GET" action="{{ route('cohort.gestantes.index') }}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                 <input class="form-input" type="search" name="q" value="{{ $busca }}"
                        placeholder="Buscar nome, ID ou CPF"
-                       style="min-width: 220px; padding: 8px 12px; font-size: 14px;"
+                       style="width: min(280px, 100%); min-width: 0; max-width: 100%; padding: 8px 12px; font-size: 16px;"
                        autocomplete="off">
                 @if ($perPage !== 25)
                     <input type="hidden" name="per_page" value="{{ $perPage }}">
