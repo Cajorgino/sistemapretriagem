@@ -16,10 +16,9 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      ml:
-        condition: service_started
     networks:
       - pretriagem
+      - cardioprenatal_net
 
   nginx:
     image: nginx:1.27-alpine
@@ -34,13 +33,14 @@ services:
       - app
     networks:
       - pretriagem
+      - cardioprenatal_net
 
   mysql:
     image: mysql:8.4
     container_name: pretriagem-mysql
     restart: unless-stopped
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-cardioprenatal}
       MYSQL_USER: ${DB_USERNAME:-pretriagem}
@@ -53,33 +53,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
-    networks:
-      - pretriagem
-
-  # Microsserviço ML (FastAPI) — sem acesso ao MySQL
-  # Se a AnalisePython já estiver em :8010 no host, comente `ports` ou o serviço
-  # e aponte PYTHON_API_URL=http://host.docker.internal:8010 no .env
-  ml:
-    build:
-      context: ./python_api
-      dockerfile: Dockerfile
-    container_name: pretriagem-ml
-    restart: unless-stopped
-    # Porta 8010 fica com a API canônica (AnalisePython), que expõe /gestantes.
-    # O Laravel usa PYTHON_API_URL=http://host.docker.internal:8010.
-    # ports:
-    #   - "8010:8010"
-    environment:
-      MODEL_PATH: models/model.pkl
-      METRICS_PATH: data/metricas_modelos.csv
-      MODEL_META_PATH: models/model_meta.json
-      APP_NAME: CardioPrenatal-ML
-      APP_VERSION: "1.0.0"
-      LOG_LEVEL: info
-    volumes:
-      # model.pkl (CatBoost experimento_3_completo) + model_meta.json
-      - ./python_api/models:/app/models:ro
-      - ../AnalisePython/data:/app/data:ro
     networks:
       - pretriagem
 
@@ -106,6 +79,7 @@ services:
         condition: service_started
     networks:
       - pretriagem
+      - cardioprenatal_net
 
   # Agenda: dataset:sync-from-api + analises:reprocess (routes/console.php)
   scheduler:
@@ -132,10 +106,13 @@ services:
         condition: service_started
     networks:
       - pretriagem
+      - cardioprenatal_net
 
 networks:
   pretriagem:
     driver: bridge
+  cardioprenatal_net:
+    external: true
 
 volumes:
   pretriagem_mysql_data:
