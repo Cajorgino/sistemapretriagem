@@ -172,6 +172,7 @@ class WhatsAppMessageTemplates
             'nome' => trim($nome) !== '' ? trim($nome) : 'gestante',
             'primeiro_nome' => $this->primeiroNome($nome),
             'idade_gestacional' => null,
+            'idade_crianca_meses' => null,
             'data_ultima_consulta' => null,
             'risco' => null,
             'tem_risco_alto' => false,
@@ -280,6 +281,9 @@ class WhatsAppMessageTemplates
             'nome_cadastro' => $nomeCadastro !== '',
             'primeiro_nome' => $nomeCadastro !== '' ? $this->primeiroNome($nomeCadastro) : '',
             'idade_gestacional' => $ig !== null && $ig !== '' ? (string) $ig : null,
+            'idade_crianca_meses' => $consulta?->idade_crianca_meses !== null && $consulta?->idade_crianca_meses !== ''
+                ? (string) $consulta->idade_crianca_meses
+                : null,
             'data_ultima_consulta' => $dataConsulta,
             'pressao_sistolica' => $consulta?->pressao_sistolica,
             'bpm_materno' => $consulta?->bpm_materno,
@@ -643,7 +647,80 @@ TXT;
             || str_contains($t, 'consultas cadastrad')
             || str_contains($t, 'ver consulta')
             || str_contains($t, 'dados da consulta')
-            || str_contains($t, 'historico de consulta');
+            || str_contains($t, 'historico de consulta')
+            || $this->textoPerguntaIdadeGestacional($t)
+            || $this->textoPerguntaMesesDeVida($t);
+    }
+
+    /**
+     * Perguntas sobre semanas / idade gestacional usam o prontuário (consultas_dados).
+     */
+    public function textoPerguntaIdadeGestacional(string $t): bool
+    {
+        if ($t === '') {
+            return false;
+        }
+
+        $frases = [
+            'quantas semanas',
+            'quanta semanas',
+            'qts semanas',
+            'idade gestacional',
+            'semanas de gestacao',
+            'semanas de gravidez',
+            'estou com quantas semanas',
+            'to com quantas semanas',
+            'em que semana',
+            'qual minha semana',
+            'qual a minha semana',
+            'qual semana estou',
+            'em quantas semanas estou',
+        ];
+
+        foreach ($frases as $frase) {
+            if (str_contains($t, $frase)) {
+                return true;
+            }
+        }
+
+        return (bool) preg_match('/\b(semanas?|ig)\b/u', $t)
+            && (bool) preg_match('/\b(quantas?|quanta|qual|estou|to|gestacao|gravidez|consulta)\b/u', $t);
+    }
+
+    /**
+     * Perguntas sobre meses de vida da criança na ficha (planilha clínica).
+     */
+    public function textoPerguntaMesesDeVida(string $t): bool
+    {
+        if ($t === '') {
+            return false;
+        }
+
+        $frases = [
+            'meses de vida',
+            'mes de vida',
+            'quantos meses',
+            'quanto meses',
+            'qts meses',
+            'idade da crianca',
+            'idade do bebe',
+            'idade do bebé',
+            'idade do meu bebe',
+            'idade da minha crianca',
+            'quantos meses tem',
+            'com quantos meses',
+            'meses a crianca',
+            'meses o bebe',
+        ];
+
+        foreach ($frases as $frase) {
+            if (str_contains($t, $frase)) {
+                return true;
+            }
+        }
+
+        return (bool) preg_match('/\bmeses?\b/u', $t)
+            && (bool) preg_match('/\b(quantos?|quanto|idade|crianca|bebe|bebé|vida|consulta|ficha)\b/u', $t);
     }
 
     public function textoProximosCompromissos(string $t): bool

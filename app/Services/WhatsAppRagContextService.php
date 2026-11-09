@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\RagContextBuilder;
 use App\Models\AnaliseHistorico;
+use App\Models\Consulta;
 use App\Models\Gestante;
 use App\Models\GestanteCanal;
 use App\Models\GestanteDocumento;
@@ -162,6 +163,8 @@ REGRAS OBRIGATÓRIAS (não viole):
 - Nunca afirme que uma informação existe se ela não estiver neste contexto.
 - Não indique medicamentos nem faça diagnóstico.
 - Se o dado não estiver aqui, diga que a informação não está disponível no sistema e ofereça encaminhamento à equipe.
+- Se perguntarem quantas semanas / idade gestacional: use só o valor cadastrado. Se estiver marcado como não cadastrado, diga isso com clareza e oriente a equipe ou a próxima consulta — nunca calcule nem invente semanas.
+- Se perguntarem meses de vida / idade da criança na ficha: use só “Meses de vida da criança”. Não confunda com idade gestacional (semanas) nem com idade materna. Se estiver não cadastrado, diga isso com clareza.
 - Não complete lacunas com conhecimento médico geral. Não altere dados retornados.
 - Há um PatientSnapshot clínico disponível: use-o. Não verbalize classificação de risco de ML de forma alarmista.
 - Não repita em toda mensagem o aviso “este canal não substitui consulta” — no máximo uma vez se ainda não foi dito no histórico recente.
@@ -323,23 +326,7 @@ TXT;
             ->get();
 
         foreach ($consultas as $c) {
-            $bits = array_filter([
-                $c->data_consulta ? 'data '.$c->data_consulta->format('Y-m-d') : null,
-                $c->idade_gestacional !== null ? 'IG '.$c->idade_gestacional.' sem' : null,
-                $c->idade_materna !== null ? 'idade materna '.$c->idade_materna : null,
-                $c->pressao_sistolica !== null ? 'PA sistólica '.$c->pressao_sistolica : null,
-                $c->bpm_materno !== null ? 'FC materna '.$c->bpm_materno : null,
-                $c->glicemia_jejum !== null ? 'glicemia jejum '.$c->glicemia_jejum : null,
-                $c->glicemia_pos_prandial !== null ? 'glicemia pós '.$c->glicemia_pos_prandial : null,
-                $c->hba1c !== null ? 'HbA1c '.$c->hba1c : null,
-                $c->peso !== null ? 'peso '.$c->peso : null,
-                $c->altura !== null ? 'altura '.$c->altura : null,
-                $c->diabetes_gestacional ? 'diabetes gestacional' : null,
-                $c->hipertensao ? 'hipertensão registrada' : null,
-                $c->hipertensao_cronica ? 'hipertensão crônica' : null,
-                $c->hipertensao_pre_eclampsia ? 'pré-eclâmpsia' : null,
-                $c->saturacao !== null ? 'saturação '.$c->saturacao : null,
-            ]);
+            $bits = $this->textoChunkConsulta($c);
             if ($bits === []) {
                 continue;
             }
@@ -578,6 +565,65 @@ TXT;
     }
 
     /**
+     * Texto indexável da consulta com todos os campos clínicos úteis ao RAG.
+     *
+     * @return list<string>
+     */
+    private function textoChunkConsulta(Consulta $c): array
+    {
+        $bits = [];
+        if ($c->data_consulta) {
+            $bits[] = 'data '.$c->data_consulta->format('Y-m-d');
+        }
+        if (filled($c->registro_planilha)) {
+            $bits[] = 'registro planilha '.$c->registro_planilha;
+        }
+
+        foreach ($this->catalogoMedidasClinicas() as $campo => $label) {
+            $val = $c->{$campo} ?? null;
+            if ($val === null || $val === '') {
+                continue;
+            }
+            $bits[] = match ($campo) {
+                'idade_gestacional' => 'idade gestacional '.$val.' semanas',
+                'idade_crianca_meses' => 'meses de vida '.$val,
+                'imc_gestacional_categoria' => 'IMC gestacional '.$this->rotuloImcGestacional($val),
+                'paridade' => 'paridade '.$this->rotuloParidade($val),
+                default => mb_strtolower($label, 'UTF-8').' '.$val,
+            };
+        }
+
+        foreach ($this->catalogoFlagsClinicos() as $campo => $label) {
+            if (! (bool) ($c->{$campo} ?? false)) {
+                continue;
+            }
+            $bits[] = mb_strtolower($label, 'UTF-8');
+        }
+
+        return $bits;
+    }
+
+    private function rotuloImcGestacional(mixed $faixa): string
+    {
+        return match ((int) $faixa) {
+            0 => 'normal',
+            1 => 'acima de 24,9',
+            2 => 'abaixo de 18,5',
+            default => (string) $faixa,
+        };
+    }
+
+    private function rotuloParidade(mixed $paridade): string
+    {
+        return match ((int) $paridade) {
+            0 => 'primigesta',
+            1 => '1 filho',
+            2 => '2 filhos',
+            default => ((int) $paridade >= 3 ? 'mais de 3 filhos' : (string) $paridade),
+        };
+    }
+
+    /**
      * Campos booleanos da última consulta → sempre sim/não no snapshot.
      *
      * @return array<string, string>
@@ -636,11 +682,13 @@ TXT;
             'consulta_numero' => 'Número da consulta',
             'idade_materna' => 'Idade materna',
             'idade_gestacional' => 'Idade gestacional (semanas)',
+            'idade_crianca_meses' => 'Meses de vida da criança',
             'etnia' => 'Etnia',
             'paridade' => 'Paridade',
             'abortamentos_previos' => 'Abortamentos prévios',
             'imc_pre_gestacional' => 'IMC pré-gestacional',
             'imc_gestacional_categoria' => 'Categoria IMC gestacional',
+            'registro_planilha' => 'Registro da planilha',
             'pressao_sistolica' => 'PA sistólica',
             'bpm_materno' => 'FC materna',
             'saturacao' => 'Saturação',
@@ -713,6 +761,7 @@ TXT;
 
         if ($consulta === null) {
             $snapshot['idade_gestacional'] = $ctx['idade_gestacional'] ?? null;
+            $snapshot['idade_crianca_meses'] = $ctx['idade_crianca_meses'] ?? null;
             $snapshot['pressao_sistolica'] = $ctx['pressao_sistolica'] ?? null;
             $snapshot['bpm_materno'] = $ctx['bpm_materno'] ?? null;
             $snapshot['peso'] = $ctx['peso'] ?? null;
@@ -727,6 +776,8 @@ TXT;
                 // Preferências do contextFromGestante quando a consulta não tem o valor
                 if ($campo === 'idade_gestacional' && ! empty($ctx['idade_gestacional'])) {
                     $snapshot[$campo] = $ctx['idade_gestacional'];
+                } elseif ($campo === 'idade_crianca_meses' && isset($ctx['idade_crianca_meses']) && $ctx['idade_crianca_meses'] !== '') {
+                    $snapshot[$campo] = $ctx['idade_crianca_meses'];
                 } elseif ($campo === 'pressao_sistolica' && isset($ctx['pressao_sistolica'])) {
                     $snapshot[$campo] = $ctx['pressao_sistolica'];
                 } elseif ($campo === 'bpm_materno' && isset($ctx['bpm_materno'])) {
@@ -773,16 +824,44 @@ TXT;
         $linhas[] = 'Medidas / dados da última consulta:';
         $temMedida = false;
         foreach ($this->catalogoMedidasClinicas() as $key => $label) {
-            if (! array_key_exists($key, $snapshot)) {
+            if (! array_key_exists($key, $snapshot) && ! in_array($key, ['idade_gestacional', 'idade_crianca_meses'], true)) {
                 continue;
             }
-            $val = $snapshot[$key];
+            $val = $snapshot[$key] ?? null;
+            if ($key === 'idade_gestacional') {
+                $temDado = true;
+                $temMedida = true;
+                if ($val === null || $val === '') {
+                    $linhas[] = '- '.$label.': não cadastrada no sistema';
+                } else {
+                    $linhas[] = '- '.$label.': '.$val.' semanas';
+                }
+
+                continue;
+            }
+            if ($key === 'idade_crianca_meses') {
+                $temDado = true;
+                $temMedida = true;
+                if ($val === null || $val === '') {
+                    $linhas[] = '- '.$label.': não cadastrado no sistema';
+                } else {
+                    $linhas[] = '- '.$label.': '.$val.' meses';
+                }
+
+                continue;
+            }
             if ($val === null || $val === '') {
                 continue;
             }
             $temDado = true;
             $temMedida = true;
-            $linhas[] = '- '.$label.': '.$val;
+            if ($key === 'imc_gestacional_categoria') {
+                $linhas[] = '- '.$label.': '.$this->rotuloImcGestacional($val);
+            } elseif ($key === 'paridade') {
+                $linhas[] = '- '.$label.': '.$this->rotuloParidade($val);
+            } else {
+                $linhas[] = '- '.$label.': '.$val;
+            }
         }
         if (! $temMedida) {
             $linhas[] = '- (sem medidas preenchidas)';
@@ -899,8 +978,16 @@ TXT;
             $linhas[] = '- Primeiro nome: '.$nome;
         }
         $ig = $ctx['idade_gestacional'] ?? $snapshot['idade_gestacional'] ?? null;
-        if (! empty($ig)) {
+        if ($ig !== null && $ig !== '' && is_numeric($ig)) {
             $linhas[] = '- Idade gestacional na última consulta: '.$ig.' semanas';
+        } else {
+            $linhas[] = '- Idade gestacional na última consulta: não cadastrada no sistema';
+        }
+        $meses = $ctx['idade_crianca_meses'] ?? $snapshot['idade_crianca_meses'] ?? null;
+        if ($meses !== null && $meses !== '' && is_numeric($meses)) {
+            $linhas[] = '- Meses de vida da criança na última consulta: '.$meses.' meses';
+        } else {
+            $linhas[] = '- Meses de vida da criança na última consulta: não cadastrado no sistema';
         }
         $dataConsulta = $ctx['data_ultima_consulta'] ?? $snapshot['data_ultima_consulta'] ?? null;
         if (! empty($dataConsulta)) {

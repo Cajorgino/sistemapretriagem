@@ -197,6 +197,64 @@ test('mensagem da equipe na ficha aparece no historico_conversa como staff', fun
         ->and($payload['contexto_texto'])->toContain('Já registramos seu caso');
 });
 
+test('pergunta sobre semanas de gestacao usa prontuario e responde com IG cadastrada', function () {
+    $g = gestanteRag(['telefone' => '5511977001122']);
+    consultaRag($g, ['idade_gestacional' => 28]);
+
+    $payload = app(WhatsAppRagContextService::class)->buildForTelefone(
+        '5511977001122',
+        'na minha consulta, quantas semanas de gestação estou?',
+    );
+
+    expect($payload['found'])->toBeTrue()
+        ->and($payload['intencao'])->toBe('exames_consultas')
+        ->and((string) $payload['patient_snapshot']['idade_gestacional'])->toBe('28')
+        ->and($payload['contexto_texto'])->toContain('Idade gestacional')
+        ->and($payload['contexto_texto'])->toContain('28 semanas')
+        ->and($payload['contexto_texto'])->toContain('nunca calcule nem invente semanas');
+});
+
+test('pergunta sobre meses de vida usa o campo da ficha clinica', function () {
+    $g = gestanteRag(['telefone' => '5511977005566']);
+    consultaRag($g, [
+        'idade_gestacional' => null,
+        'idade_crianca_meses' => 8,
+        'etnia' => 'Parda',
+        'prematuridade' => true,
+        'imc_gestacional_categoria' => 1,
+    ]);
+
+    $payload = app(WhatsAppRagContextService::class)->buildForTelefone(
+        '5511977005566',
+        'na minha consulta, quantos meses de vida estão cadastrados?',
+    );
+
+    expect($payload['found'])->toBeTrue()
+        ->and($payload['intencao'])->toBe('exames_consultas')
+        ->and((string) $payload['patient_snapshot']['idade_crianca_meses'])->toBe('8')
+        ->and($payload['contexto_texto'])->toContain('Meses de vida da criança')
+        ->and($payload['contexto_texto'])->toContain('8 meses')
+        ->and($payload['contexto_texto'])->toContain('Não confunda com idade gestacional')
+        ->and($payload['contexto_texto'])->toContain('meses de vida 8')
+        ->and($payload['contexto_texto'])->toContain('prematuridade')
+        ->and($payload['contexto_texto'])->toContain('acima de 24,9');
+});
+
+test('quando IG nao esta cadastrada o rag deixa isso explicito no contexto', function () {
+    $g = gestanteRag(['telefone' => '5511977003344', 'nome' => 'Helena Sem Ig']);
+    consultaRag($g, ['idade_gestacional' => null]);
+
+    $payload = app(WhatsAppRagContextService::class)->buildForTelefone(
+        '5511977003344',
+        'quantas semanas eu estou?',
+    );
+
+    expect($payload['found'])->toBeTrue()
+        ->and($payload['intencao'])->toBe('exames_consultas')
+        ->and($payload['contexto_texto'])->toContain('Idade gestacional')
+        ->and($payload['contexto_texto'])->toContain('não cadastrada no sistema');
+});
+
 test('endpoint rag http devolve patient_snapshot e historico_conversa', function () {
     config(['services.waha.webhook_secret' => '']);
 
