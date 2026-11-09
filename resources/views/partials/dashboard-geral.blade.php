@@ -20,7 +20,6 @@
     }
     $secoesNav = array_merge($secoesNav, [
         ['href' => '#indicadores', 'label' => 'Visão geral'],
-        ['href' => '#cobertura', 'label' => 'Cobertura'],
         ['href' => '#graficos', 'label' => 'Variáveis'],
     ]);
     foreach ($gruposVariaveis as $chaveNav => $grupo) {
@@ -168,53 +167,6 @@
         </div>
     </section>
 
-    <section class="dash-zone" id="cobertura">
-        <div class="dash-zone-head">
-            <div>
-                <h2>Cobertura</h2>
-                <p>A barra de cima é a cobertura das fichas. A de baixo é a parte com cardiopatia confirmada. Ela é curta porque o desfecho é raro.</p>
-            </div>
-        </div>
-
-        @if ($totalConsultas > 0)
-            <div class="dash-bars">
-                <div class="dash-panel dash-bar-block">
-                    <h4>Cobertura de consultas</h4>
-                    <div class="dash-bar-track">
-                        <div class="dash-bar-seg dash-bar-seg--ok" style="width: {{ $taxaGestantesComConsulta }}%"></div>
-                    </div>
-                    <div class="dash-bar-meta">
-                        <strong>{{ $gestantesComConsulta }}</strong> de <strong>{{ $totalGestantes }}</strong>
-                        gestantes ({{ $taxaGestantesComConsulta }}%)
-                    </div>
-                </div>
-                <div class="dash-panel dash-bar-block">
-                    <h4>Cardiopatia congênita nas consultas</h4>
-                    @php
-                        $wChd = round(100 * $chdConfirmadas / max($totalConsultas, 1), 2);
-                        $wChdBar = $chdConfirmadas > 0 ? max($wChd, 2) : 0;
-                    @endphp
-                    <div class="dash-bar-track">
-                        <div class="dash-bar-seg dash-bar-seg--risk" style="width: {{ $wChdBar }}%"></div>
-                    </div>
-                    <div class="dash-bar-meta">
-                        Sim: <strong>{{ $chdConfirmadas }}</strong> ({{ $pctChdNasConsultas }}%)
-                        · Não: <strong>{{ $chdNegativas }}</strong>
-                    </div>
-                </div>
-            </div>
-            <div class="dash-mini">
-                <span>Meses de vida: <strong>{{ isset($mediaIdadeCriancaMeses) && $mediaIdadeCriancaMeses !== null ? number_format((float) $mediaIdadeCriancaMeses, 1, ',', '.') : 'Não informado' }}</strong></span>
-                <span>Diabetes gestacional: <strong>{{ $consultasComDiabetes }}</strong></span>
-                <span>Hipertensão: <strong>{{ $consultasComHipertensao }}</strong></span>
-            </div>
-        @else
-            <div class="dash-panel">
-                <p class="dash-empty">Ainda não há consultas cadastradas.</p>
-            </div>
-        @endif
-    </section>
-
     <section class="dash-area" id="graficos">
         <div class="dash-area-head">
             <p class="dash-area-kicker">Análise por variáveis</p>
@@ -310,7 +262,7 @@
                                 @endforeach
                             </div>
                         @endif
-                        @if (is_array($leituraGrupo) && ($leituraGrupo['tabelas'] ?? []) !== [])
+                        @if ($graficosGrupo === [] && is_array($leituraGrupo) && ($leituraGrupo['tabelas'] ?? []) !== [])
                             <div class="dash-desc-tables">
                                 @foreach ($leituraGrupo['tabelas'] as $tabela)
                                     <article class="dash-panel">

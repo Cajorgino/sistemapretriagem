@@ -172,8 +172,10 @@ test('dashboard desenha graficos do cohort a partir do cadastro local', function
         ->assertSee('chart-cohort-desfecho_gestantes')
         ->assertSee('Perfil das gestantes com cardiopatia congênita')
         ->assertSee('chart-cohort-desfecho_fatores')
-        ->assertSee('Prevalência de CCF nas fichas')
-        ->assertSee('chart-cohort-prevalencia')
+        ->assertDontSee('Prevalência de CCF nas fichas')
+        ->assertDontSee('chart-cohort-prevalencia')
+        ->assertDontSee('Cardiopatias segundo o fator')
+        ->assertDontSee('Cobertura de consultas')
         ->assertDontSee('Gráficos descritivos indisponíveis.');
 });
 

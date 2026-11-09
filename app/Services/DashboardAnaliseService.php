@@ -291,7 +291,6 @@ class DashboardAnaliseService
             return [];
         }
 
-        $chdSim = (int) Consulta::query()->where('chd_confirmada', true)->count();
         $gestantesComDesfecho = (int) Gestante::query()
             ->whereHas('consultas', static fn ($q) => $q->where('chd_confirmada', true))
             ->count();
@@ -303,13 +302,6 @@ class DashboardAnaliseService
                 'tipo' => 'doughnut',
                 'labels' => ['Com cardiopatia congênita confirmada', 'Sem cardiopatia congênita confirmada'],
                 'valores' => [$gestantesComDesfecho, max(0, $totalGestantes - $gestantesComDesfecho)],
-            ],
-            [
-                'slug' => 'prevalencia',
-                'titulo' => 'Prevalência de CCF nas fichas',
-                'tipo' => 'doughnut',
-                'labels' => ['Cardiopatia congênita confirmada', 'Sem cardiopatia congênita confirmada'],
-                'valores' => [$chdSim, max(0, $totalConsultas - $chdSim)],
             ],
         ];
 
@@ -417,7 +409,6 @@ class DashboardAnaliseService
                 'Infecção bacteriana' => static fn ($q) => $q->where('infeccao_materna_bacteriana', true),
             ],
         );
-        $casos = $this->serieFatores($fatoresDesfecho, true);
         $perfilDesfecho = $gestantesComDesfecho > 0
             ? $this->serieFatoresGestantes($fatoresDesfecho, true)
             : [];
@@ -434,9 +425,6 @@ class DashboardAnaliseService
                 'Perfil das gestantes com cardiopatia congênita',
                 $perfilDesfecho,
             );
-        }
-        if ($casos !== []) {
-            $charts[] = $this->graficoBarras('casos_ccf', 'Cardiopatias segundo o fator', $casos);
         }
 
         return $charts;
